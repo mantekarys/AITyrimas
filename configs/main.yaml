@@ -1,12 +1,12 @@
 environment:
-  window_size: [84, 84]
+  window_size: [300, 300]
   traffic_density: 0.1
   stack_size: 4
   accident_prob: 0.0
-  map: "O"
+  map: "CCCCCCCC"
 simulation:
   simulations_count: 1
   show_view: False
 seed: 0
 training:
-  batch_size: 64
+  batch_size: 500

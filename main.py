@@ -2,6 +2,7 @@ import os
 import random
 import sys
 import time
+from functools import partial
 from typing import Any
 
 import cupy as cp
@@ -33,8 +34,9 @@ class DataCollector:
         # self.envs = 
         self.policy = policy
 
-    def create_env(self, env_config: dict[str, Any], seed: int) -> gym.Env:
+    def create_env(self, env_config: dict[str, Any], seed: int = None) -> gym.Env:
         # lidar data still retuned be env
+        print(seed)
         sim_config = env_config["environment"].copy()
         sim_config.update(
             {
@@ -44,22 +46,29 @@ class DataCollector:
                 "agent_policy": IDMPolicy,  # drive with IDM policy
                 "image_on_cuda": True,
                 "window_size": tuple(env_config["environment"]["window_size"]),
+                "start_seed": seed if seed is None else self.seed,
+                "use_render":False,
+                "show_interface":False,
+                "show_logo":False,
+                "show_fps":False,
             }
         )
-        # self.seed
         env = MetaDriveEnv(sim_config)
         return env
 
-    def show_view(self, frames: np.ndarray | cp.ndarray) -> None:
-        cv2.imshow("frame", frames)
-        # rendering, the last one is the current frame
-        ret = obs[0]["image"][..., -1] * 255  # [0., 1.] to [0, 255]
-        ret: cp.array = ret.astype(np.uint8)
-        # ret = cp.asnumpy(ret)
-        # # frames.append(ret[..., ::-1])
-        # cv2.imshow("frame", ret)
-        # if cv2.waitKey(1) == ord("q"):
-        #     break
+    def show_view(self, observations: np.ndarray | cp.ndarray) -> None:
+        frames = observations[0]["image"]
+        if len(frames.shape) == 4:
+            image = frames[..., -1] * 255  # [0., 1.] to [0, 255]
+        elif len(frames.shape) == 5:        
+            frames = frames[:, ..., -1]
+            image = np.concatenate([f for f in frames], axis=1)
+            image *= 255
+        image: np.array = cp.asnumpy(image.astype(np.uint8))
+
+        cv2.imshow("frame", image)
+        if cv2.waitKey(1) == ord("q"):
+            return
 
     def collect_frames(self) -> np.ndarray|cp.ndarray:
         frames = []
@@ -88,7 +97,7 @@ class DataCollector:
             envs_count = self.config["simulation"]["simulations_count"]
             parallel_envs = SubprocVecEnv(
                 [
-                    lambda: self.create_env(self.config, seed + index)
+                    partial(self.create_env, self.config, seed+index)
                     for index in range(envs_count)
                 ]
             )
@@ -100,6 +109,8 @@ class DataCollector:
                 )
                 parallel_envs.step_async(actions)
                 obs = parallel_envs.step_wait()
+                if self.config["simulation"]["show_view"]:
+                    self.show_view(obs)
                 frames.append(obs[:3])
             end_time = time.perf_counter()
             print("FPS:", frame_index * envs_count / (end_time - start_time))
@@ -122,3 +133,9 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    sys.exit(0)
+
+
+
+
+
