@@ -35,13 +35,9 @@ class DataCollector:
         self.seed = config["seed"]
         self.config = config
 
-    def create_env(self, env_config: dict[str, Any], seed: int = None) -> gym.Env:
+    def single_env(self, seed:int = None)->gym.Env:
         # lidar data still retuned be env
-        sim_config = (
-            env_config["environment"].copy()
-            if env_config
-            else self.config["environment"].copy()
-        )
+        sim_config = self.config["environment"].copy()
         sim_config.update(
             {
                 "image_observation": True,
@@ -49,7 +45,7 @@ class DataCollector:
                 "sensors": {"main_camera": ()},
                 "agent_policy": IDMPolicy,  # drive with IDM policy
                 "image_on_cuda": False, #no use for default policy and multiprocessing
-                "window_size": tuple(env_config["environment"]["window_size"]),
+                "window_size": tuple(self.config["environment"]["window_size"]),
                 "start_seed": seed if seed else self.seed,
                 "use_render": False,
                 "show_interface": False,
@@ -60,6 +56,17 @@ class DataCollector:
         env = SafeMetaDriveEnv(sim_config)
         return env
 
+    def create_env(self, seed: int = None) -> gym.Env:
+        envs_count = self.config["simulation"]["simulations_count"]
+        seed = seed if seed else self.config["seed"]
+        parallel_envs = SubprocVecEnv(
+            [
+                partial(self.single_env, seed + index)
+                for index in range(envs_count)
+            ]
+        )
+        return parallel_envs
+
     def show_view(self, observations: np.ndarray | cp.ndarray) -> None:
         frames = observations[0]["image"]
         if len(frames.shape) == 4:
@@ -68,7 +75,8 @@ class DataCollector:
             frames = frames[:, ..., -1]
             image = np.concatenate([f for f in frames], axis=1)
             image *= 255
-        image: np.array = cp.asnumpy(image.astype(np.uint8))
+        image = image.astype(np.uint8)
+        # image: np.array = cp.asnumpy(image)
 
         cv2.imshow("frame", image)
         if cv2.waitKey(1) == ord("q"):
@@ -78,43 +86,23 @@ class DataCollector:
         frames = []
         seed = self.config["seed"]
         total_samples = self.config["training"]["batch_size"]
-        if self.config["simulation"]["simulations_count"] == 1:
-            env = self.create_env(self.config, seed)
+        if True:
+            env = self.create_env(seed)
             start_time = time.perf_counter()
-            # env.reset()
             reset_time, obs = measure_time(env.reset)
             print(f"Reset took: {reset_time}")
-            for frame_index in tqdm.tqdm(range(total_samples)):
-                obs = env.step(env.action_space.sample())
-                if self.config["simulation"]["show_view"]:
-                    self.show_view(obs)
-                frames.append(obs[:3])
-                if obs[2] or obs[3]:
-                    env.reset()
-            end_time = time.perf_counter()
-            print("FPS:", frame_index / (end_time - start_time))
-            print("Time elapsed:", end_time - start_time)
-        else:
-            envs_count = self.config["simulation"]["simulations_count"]
-            parallel_envs = SubprocVecEnv(
-                [
-                    partial(self.create_env, self.config, seed + index)
-                    for index in range(envs_count)
-                ]
-            )
-            start_time = time.perf_counter()
-            parallel_envs.reset()
             for frame_index in range(total_samples):
                 actions = np.array(
-                    [parallel_envs.action_space.sample() for _ in range(envs_count)]
+                    [env.action_space.sample() for _ in range(self.config["simulation"]["simulations_count"])]
                 )
-                parallel_envs.step_async(actions)
-                obs = parallel_envs.step_wait()
+                env.step_async(actions)
+                obs = env.step_wait()
                 if self.config["simulation"]["show_view"]:
                     self.show_view(obs)
                 frames.append(obs[:3])
+
             end_time = time.perf_counter()
-            print("FPS:", frame_index * envs_count / (end_time - start_time))
+            print("FPS:", frame_index / (end_time - start_time))
             print("Time elapsed:", end_time - start_time)
         return frames
 
@@ -123,7 +111,6 @@ class MLflowOutputFormat(KVWriter):
     """
     Dumps key/value pairs into MLflow's numeric format.
     """
-
     def write(
         self,
         key_values: Dict[str, Any],
@@ -159,7 +146,7 @@ def main() -> None:
 
     model = PPO(
         policy="MultiInputPolicy",
-        env=collector.create_env(config),
+        env=collector.create_env(),
         learning_rate=1e-5,
         n_steps=4096, #batch size, n_env*n_steps
         batch_size=64, #minibatch size

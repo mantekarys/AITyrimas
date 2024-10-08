@@ -7,7 +7,7 @@ environment:
   num_scenarios: 200
 simulation:
   simulations_count: 3
-  show_view: False
+  show_view: True
 seed: 0
 training:
   batch_size: 5000
