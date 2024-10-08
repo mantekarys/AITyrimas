@@ -43,7 +43,7 @@ class DataCollector:
                 "image_observation": True,
                 "vehicle_config": dict(image_source="main_camera"),
                 "sensors": {"main_camera": ()},
-                "agent_policy": IDMPolicy,  # drive with IDM policy
+                # "agent_policy": IDMPolicy,  # drive with IDM policy
                 "image_on_cuda": False, #no use for default policy and multiprocessing
                 "window_size": tuple(self.config["environment"]["window_size"]),
                 "start_seed": seed if seed else self.seed,
@@ -165,7 +165,7 @@ def main() -> None:
     )
     model.set_logger(loggers)
     with mlflow.start_run():
-        model.learn(total_timesteps=1e5, log_interval=4, progress_bar=True)
+        model.learn(total_timesteps=1e5, log_interval=1, progress_bar=True)
     model.save("policy_1")
 
 
