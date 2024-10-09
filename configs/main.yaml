@@ -6,8 +6,15 @@ environment:
   map: "CCCCCCCCCCCCCCC"
   num_scenarios: 200
 simulation:
-  simulations_count: 3
-  show_view: True
+  simulations_count: 4
+  show_view: True #currently works only in .collect_frames()
 seed: 0
+algorithm:
+  learning_rate: 1e-4
+  batch_size: 5000 # x num_envs
+  minibatch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
 training:
-  batch_size: 5000
+  steps: 1e5
