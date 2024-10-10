@@ -1,3 +1,4 @@
 .vscode/*
 # mlruns/*
 *.zip
+__pycache__/*
