@@ -1,5 +1,7 @@
+import math
 from typing import Any, Callable, Dict, Tuple, Union
 
+import dinov2
 import gymnasium as gym
 import gymnasium.spaces
 import numpy as np
@@ -7,6 +9,7 @@ import stable_baselines3 as sb3
 import torch
 import torch.nn as nn
 import torch.optim
+from gymnasium.spaces import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
@@ -17,34 +20,46 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         # so put something dummy for now. PyTorch requires calling
         # nn.Module.__init__ before adding modules
         super().__init__(observation_space, features_dim=1)
+        output_vector_size = 0
 
-        extractors = {}
+        # torch.Size([2, 84, 84, 3, 4])
+        # image shape: batch, {x, y}, chanels, time stack 4
+        image_shape: Box = observation_space.spaces["image"]
 
-        total_concat_size = 0
-        # We need to know size of the output of this extractor,
-        # so go over all the spaces and compute output feature sizes
-        for key, subspace in observation_space.spaces.items():
-            if key == "image":
-                # We will just downsample one channel of the image by 4x4 and flatten.
-                # Assume the image is single-channel (subspace.shape[0] == 0)
-                extractors[key] = nn.Sequential(nn.MaxPool2d(4), nn.Flatten())
-                total_concat_size += subspace.shape[1] // 4 * subspace.shape[2] // 4
-            elif key == "vector":
-                # Run through a simple MLP
-                extractors[key] = nn.Linear(subspace.shape[0], 16)
-                total_concat_size += 16
-
-        self.extractors = nn.ModuleDict(extractors)
+        chanels = math.prod(image_shape.shape[-2:])
+        self.net = nn.Sequential(
+            nn.Conv2d(
+                in_channels=chanels,
+                out_channels=16,
+                kernel_size=8,
+                stride=4,
+                bias=False,
+            ),
+            nn.LayerNorm([16, 20, 20]),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channels=16, out_channels=32, kernel_size=4, stride=2, bias=False
+            ),
+            nn.LayerNorm([32, 9, 9]),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
 
         # Update the features dim manually
-        self._features_dim = total_concat_size
+        self._features_dim = 2592
+        # self._features_dim = output_vector_size
 
     def forward(self, observations) -> torch.Tensor:
-        encoded_tensor_list = []
+        images: torch.Tensor = observations["image"]
+        shape = images.shape
+        stacked_chanels = images.reshape(
+            shape=tuple([*shape[:-2], shape[-2] * shape[-1]])
+        )
+        chanel_second = stacked_chanels.permute((0, 3, 1, 2))
+        # input: n,c,h,v
+        res = self.net(chanel_second)
 
-        # self.extractors contain nn.Modules that do all the processing.
-        for key, extractor in self.extractors.items():
-            encoded_tensor_list.append(extractor(observations[key]))
+        return res
         # Return a (B, self._features_dim) PyTorch tensor, where B is batch dimension.
         return torch.cat(encoded_tensor_list, dim=1)
 
@@ -74,11 +89,21 @@ class CustomNetwork(nn.Module):
 
         # Policy network
         self.policy_net = nn.Sequential(
-            nn.Linear(feature_dim, last_layer_dim_pi), nn.ReLU()
+            nn.Linear(feature_dim, 256),
+            nn.LayerNorm((256)),
+            nn.ReLU(),
+            nn.Linear(256, 64),
+            nn.LayerNorm(64),
+            nn.ReLU()
         )
         # Value network
         self.value_net = nn.Sequential(
-            nn.Linear(feature_dim, last_layer_dim_vf), nn.ReLU()
+            nn.Linear(feature_dim, 256, bias=False),
+            nn.LayerNorm((256)),
+            nn.ReLU(),
+            nn.Linear(256, 64, bias=False),
+            nn.LayerNorm(64),
+            nn.ReLU()
         )
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:

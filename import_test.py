@@ -13,5 +13,8 @@ from panda3d.core import (
     Texture,
 )
 
+#testing 3d rendering
+# python verify_image_observation.py --cuda
+
 #Runn mlflow UI server with:
 # mlflow server --host 127.0.0.1 --port 5000
