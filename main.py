@@ -21,6 +21,7 @@ from metadrive import MetaDriveEnv, SafeMetaDriveEnv
 from metadrive.component.sensors.rgb_camera import RGBCamera
 from metadrive.envs.base_env import BaseEnv
 from metadrive.policy.idm_policy import IDMPolicy
+from mlflow.entities.run import Run
 from stable_baselines3 import PPO
 from stable_baselines3.common.logger import HumanOutputFormat, KVWriter, Logger
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -28,7 +29,8 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import utils
-from custom_policy_1 import CustomActorCriticPolicy
+from custom_policy_1 import CustomCNNPolicy
+from custom_policy_2 import CustomViTPolicy
 
 
 class DataCollector:
@@ -126,12 +128,13 @@ def test_policy(policy_file:str) -> None:
     model = PPO.load(policy_file)
     env = collector.create_env()
     obs = env.reset()
-    obs["image"] = utils.resize(obs["image"])
+    # obs["image"] = utils.resize(obs["image"])
     for _ in range(1000):
-        action, _ = model.predict(obs, deterministic=True)
+        with torch.no_grad():
+            action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         collector.show_view(obs)
-        obs["image"] = utils.resize(obs["image"])
+        # obs["image"] = utils.resize(obs["image"])
     env.close()
 
 
@@ -145,15 +148,18 @@ def main() -> None:
     random.seed(config["seed"])
     torch.manual_seed(config["seed"])
     np.random.seed(config["seed"])
+    torch.set_float32_matmul_precision("high")
+
 
     collector = DataCollector(config)
     
     model = PPO(
-        policy=CustomActorCriticPolicy,
+        policy=CustomViTPolicy,
         env=collector.create_env(),
-        learning_rate=utils.linear_decay_schedule(
-            float(config["algorithm"]["learning_rate"])
-        ),
+        learning_rate=config["algorithm"]["learning_rate"],
+        # learning_rate=utils.linear_decay_schedule(
+        #     float(config["algorithm"]["learning_rate"])
+        # ),
         n_steps=config["algorithm"]["batch_size"],  # batch size, n_env*n_steps
         batch_size=config["algorithm"]["minibatch_size"],  # minibatch size
         n_epochs=config["algorithm"]["n_epochs"],
@@ -164,7 +170,7 @@ def main() -> None:
         # ent_coef=
         # vf_coef=
         # max_grad_norm=
-        # stats_window_size=100,
+        stats_window_size=10,
         seed=config["seed"],
         device="cuda" if torch.cuda.is_available() else "cpu",
         verbose=1,
@@ -188,9 +194,21 @@ def main() -> None:
             log_interval=1,
             progress_bar=True,
         )
-    model.save("policy_3")
+    run:Run
+    run_name = run.info.run_name
+    model.save(run_name)
 
 
 if __name__ == "__main__":
-    # main()
-    test_policy("policy_3.zip")
+    main()
+    # test_policy("policy_4.zip")
+
+
+#longer training, less lr decai
+#increase learning rate
+
+#different environments
+
+# reduce parameters count
+
+#torch compile?

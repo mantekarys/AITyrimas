@@ -1,7 +1,6 @@
 import math
 from typing import Any, Callable, Dict, Tuple, Union
 
-import dinov2
 import gymnasium as gym
 import gymnasium.spaces
 import numpy as np
@@ -94,7 +93,7 @@ class CustomNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 64),
             nn.LayerNorm(64),
-            nn.ReLU()
+            nn.ReLU(),
         )
         # Value network
         self.value_net = nn.Sequential(
@@ -103,7 +102,7 @@ class CustomNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(256, 64, bias=False),
             nn.LayerNorm(64),
-            nn.ReLU()
+            nn.ReLU(),
         )
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -120,7 +119,7 @@ class CustomNetwork(nn.Module):
         return self.value_net(features)
 
 
-class CustomActorCriticPolicy(ActorCriticPolicy):
+class CustomCNNPolicy(ActorCriticPolicy):
     def __init__(
         self,
         observation_space: gymnasium.spaces.Space,
