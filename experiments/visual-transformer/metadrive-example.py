@@ -7,11 +7,19 @@ from IPython.display import clear_output
 import os
 from metadrive.envs import MetaDriveEnv
 from stable_baselines3.common.monitor import Monitor
-
+from metadrive.utils import print_source
+from metadrive.component.sensors.rgb_camera import RGBCamera
+from vit_policy import ViTActorCriticPolicy
 # https://metadrive-simulator.readthedocs.io/en/latest/training.html#stable-baselines3
 
+size = (256, 128) if not os.getenv('TEST_DOC') else (16, 16) # for github CI
+
 def create_env(need_monitor=False):
+    sensor_size = (84, 60) if os.getenv('TEST_DOC') else (200, 100)
     env = MetaDriveEnv(dict(map="C",
+                      vehicle_config=dict(image_source="rgb_camera"),
+                      image_observation=True,
+                      sensors={"rgb_camera": (RGBCamera, *sensor_size)},
                       # This policy setting simplifies the task                      
                       discrete_action=True,
                       discrete_throttle_dim=3,
@@ -30,18 +38,25 @@ def create_env(need_monitor=False):
 
 def main():
     set_random_seed(0)
-    # 4 subprocess to rollout
-    train_env=SubprocVecEnv([partial(create_env, True) for _ in range(4)]) 
     
     test_env = create_env()
+    
+    from stable_baselines3.common.env_checker import check_env
+    # It will check your custom environment and output additional warnings if needed
+    # check_env(test_env)
+
+    print_source(MetaDriveEnv.get_single_observation)
     print(test_env.observation_space, test_env.action_space)
+    
+    # 4 subprocess to rollout
+    train_env=SubprocVecEnv([partial(create_env, True) for _ in range(4)]) 
     print("Start training ...")
     
     
-    model = PPO("MlpPolicy", 
+    model = PPO(ViTActorCriticPolicy, 
                 train_env,
                 n_steps=4096,
-                verbose=1)
+                verbose=0)
     model.learn(total_timesteps=1000 if os.getenv('TEST_DOC') else 300_000,
                 log_interval=4)
 

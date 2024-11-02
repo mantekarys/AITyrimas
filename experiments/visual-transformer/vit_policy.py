@@ -9,15 +9,17 @@ from gym import spaces
 import torch.nn as nn
 
 class ViTFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, features_dim: int = 512):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 768):
         super(ViTFeatureExtractor, self).__init__(observation_space, features_dim)
         # Load a pre-trained Vision Transformer from timm
         self.vit = timm.create_model('vit_base_patch16_224', pretrained=True, num_classes=0)
         self.vit.eval()
         # Ensure the transformer outputs the correct number of features
-        self.features_dim = self.vit.num_features
+        print(self.vit.num_features)
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        print('forward')
+        print(observations)
         return self.vit(observations)
 
 class ViTActorCriticPolicy(ActorCriticPolicy):
