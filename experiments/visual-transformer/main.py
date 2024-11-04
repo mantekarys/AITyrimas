@@ -27,6 +27,9 @@ from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
+import sys
+# setting path
+sys.path.append('../..')
 import utils
 from vit_extractor import ViTFeatureExtractor
 
@@ -193,5 +196,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     #TODO: why just 2 actions in env action space?
+    test = utils.FixedSafeMetaDriveEnv()
     main()
     sys.exit(0)

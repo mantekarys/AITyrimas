@@ -31,10 +31,13 @@ class ViTFeatureExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         print('forward')
-        print(observations)
-        test = self.vit(observations)
+        
+        images: torch.Tensor = observations["image"]
+        print(images.shape)
+        
+        test = self.vit(images)
         print (test)
-        return self.vit(observations)
+        return self.vit(images)
 
 # class ViTActorCriticPolicy(ActorCriticPolicy):
 #     def __init__(self, *args, **kwargs):
