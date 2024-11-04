@@ -34,9 +34,13 @@ from custom_policy_1 import CustomActorCriticPolicy
 class DataCollector:
     def __init__(self, config: dict) -> None:
         self.seed = config["seed"]
+        config["algorithm"]["learning_rate"] = float(
+            config["algorithm"]["learning_rate"]
+        )
+        config["training"]["steps"] = int(float(config["training"]["steps"]))
         self.config = config
 
-    def single_env(self, seed:int = None)->gym.Env:
+    def single_env(self, seed: int = None) -> gym.Env:
         # lidar data still retuned be env
         sim_config = self.config["environment"].copy()
         sim_config.update(
@@ -45,20 +49,20 @@ class DataCollector:
                 "vehicle_config": dict(image_source="main_camera"),
                 "sensors": {"main_camera": ()},
                 # "agent_policy": IDMPolicy,  # drive with IDM policy
-                "image_on_cuda": False, #no use for default policy and multiprocessing
+                "image_on_cuda": False,  # no use for default policy and multiprocessing
                 "window_size": tuple(self.config["environment"]["window_size"]),
                 "start_seed": seed if seed else self.seed,
                 "use_render": False,
                 "show_interface": False,
                 "show_logo": False,
                 "show_fps": False,
-                "crash_vehicle_done":False,
-                "crash_object_done":False,
-                "out_of_road_done":True,
-                "on_continuous_line_done":False,
+                "crash_vehicle_done": False,
+                "crash_object_done": False,
+                "out_of_road_done": True,
+                "on_continuous_line_done": False,
             }
         )
-        env = SafeMetaDriveEnv(sim_config)
+        env = utils.FixedSafeMetaDriveEnv(sim_config)
         return env
 
     def create_env(self, seed: int = None) -> gym.Env:
@@ -99,12 +103,15 @@ class DataCollector:
             print(f"Reset took: {reset_time}")
             for frame_index in range(total_samples):
                 actions = np.array(
-                    [env.action_space.sample() for _ in range(self.config["simulation"]["simulations_count"])]
+                    [
+                        env.action_space.sample()
+                        for _ in range(self.config["simulation"]["simulations_count"])
+                    ]
                 )
                 env.step_async(actions)
                 obs = env.step_wait()
                 if self.config["simulation"]["show_view"]:
-                    self.show_view(obs)
+                    self.show_view(obs[0])
                 frames.append(obs[:3])
 
             end_time = time.perf_counter()
@@ -113,36 +120,45 @@ class DataCollector:
         return frames
 
 
-def test_policy()->None:
+def test_policy(policy_file:str) -> None:
     test_config = yaml.safe_load(open("configs/main.yaml", "r"))
     collector = DataCollector(test_config)
-    model = PPO.load("policy_1.zip")
+    model = PPO.load(policy_file)
     env = collector.create_env()
     obs = env.reset()
+    obs["image"] = utils.resize(obs["image"])
     for _ in range(1000):
         action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         collector.show_view(obs)
+        obs["image"] = utils.resize(obs["image"])
     env.close()
+
 
 def main() -> None:
     config: dict = yaml.safe_load(open("configs/main.yaml", "r"))
+    tracking = config.pop("mlflow")
+    if "tracking_uri" in tracking:
+        mlflow.set_tracking_uri(tracking["tracking_uri"])
+    mlflow.set_experiment(tracking["experiment_name"])
     print(f"Cores count: {os.cpu_count()}")
     random.seed(config["seed"])
     torch.manual_seed(config["seed"])
     np.random.seed(config["seed"])
+
     collector = DataCollector(config)
-    # frames = collector.collect_frames()
     
     model = PPO(
         policy=CustomActorCriticPolicy,
         env=collector.create_env(),
-        learning_rate=float(config["algorithm"]["learning_rate"]),
-        n_steps=config["algorithm"]["batch_size"], #batch size, n_env*n_steps
-        batch_size=config["algorithm"]["minibatch_size"], #minibatch size
-        n_epochs = config["algorithm"]["n_epochs"], 
-        gamma = config["algorithm"]["gamma"],
-        gae_lambda=config["algorithm"]["gae_lambda"], 
+        learning_rate=utils.linear_decay_schedule(
+            float(config["algorithm"]["learning_rate"])
+        ),
+        n_steps=config["algorithm"]["batch_size"],  # batch size, n_env*n_steps
+        batch_size=config["algorithm"]["minibatch_size"],  # minibatch size
+        n_epochs=config["algorithm"]["n_epochs"],
+        gamma=config["algorithm"]["gamma"],
+        gae_lambda=config["algorithm"]["gae_lambda"],
         # clip_range=
         # clip_range_vf=
         # ent_coef=
@@ -150,27 +166,31 @@ def main() -> None:
         # max_grad_norm=
         # stats_window_size=100,
         seed=config["seed"],
-        device= "cuda" if torch.cuda.is_available() else "cpu",
+        device="cuda" if torch.cuda.is_available() else "cpu",
         verbose=1,
     )
-    print(model.policy)    
-    sys.exit(0)
-
+    # mlflow.log_param(key="policy_architecture", value=str(model.policy))
+    # print(model.policy)
+    # TODO: maybe create log file showing network architecture
     loggers = Logger(
         folder=None,
         output_formats=[HumanOutputFormat(sys.stdout), utils.MLflowOutputFormat()],
     )
     model.set_logger(loggers)
-    #TODO: Add parameters logging to mlflow
-    #TODO: Set mlflow experiments to differentiante test and real runs
-    with mlflow.start_run():
-        model.learn(total_timesteps=float(config["training"]["steps"]),
-                     log_interval=1, progress_bar=True)
-    model.save("policy_1")
+
+    # tags=tracking.get("tags", {})
+    with mlflow.start_run(log_system_metrics=True) as run:
+        flat_parameters_dict = utils.flat_dict(config)
+        mlflow.log_params(flat_parameters_dict)
+
+        model.learn(
+            total_timesteps=int(float(config["training"]["steps"])),
+            log_interval=1,
+            progress_bar=True,
+        )
+    model.save("policy_3")
 
 
 if __name__ == "__main__":
-    #TODO: why just 2 actions in env action space?
     # main()
-    # sys.exit(0)
-    test_policy()
+    test_policy("policy_3.zip")
