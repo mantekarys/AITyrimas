@@ -28,7 +28,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import utils
-from vit_policy import ViTFeatureExtractor
+from vit_extractor import ViTFeatureExtractor
 
 
 class DataCollector:
