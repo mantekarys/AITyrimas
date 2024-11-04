@@ -28,42 +28,41 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import utils
-from vit_policy import ViTActorCriticPolicy
+from vit_policy import ViTFeatureExtractor
 
 
 class DataCollector:
     def __init__(self, config: dict) -> None:
         self.seed = config["seed"]
+        config["algorithm"]["learning_rate"] = float(
+            config["algorithm"]["learning_rate"]
+        )
+        config["training"]["steps"] = int(float(config["training"]["steps"]))
         self.config = config
 
-    def single_env(self, seed:int = None)->gym.Env:
+    def single_env(self, seed: int = None) -> gym.Env:
         # lidar data still retuned be env
         sim_config = self.config["environment"].copy()
         sim_config.update(
             {
                 "image_observation": True,
                 "vehicle_config": dict(image_source="main_camera"),
-                "norm_pixel": True,
-                "discrete_action": True,
-                "discrete_throttle_dim": 3,
-                "discrete_steering_dim": 3,
-                "horizon": 500,
                 "sensors": {"main_camera": ()},
                 # "agent_policy": IDMPolicy,  # drive with IDM policy
-                "image_on_cuda": False, #no use for default policy and multiprocessing
+                "image_on_cuda": False,  # no use for default policy and multiprocessing
                 "window_size": tuple(self.config["environment"]["window_size"]),
                 "start_seed": seed if seed else self.seed,
                 "use_render": False,
                 "show_interface": False,
                 "show_logo": False,
                 "show_fps": False,
-                "crash_vehicle_done":False,
-                "crash_object_done":False,
-                "out_of_road_done":True,
-                "on_continuous_line_done":False,
+                "crash_vehicle_done": False,
+                "crash_object_done": False,
+                "out_of_road_done": True,
+                "on_continuous_line_done": False,
             }
         )
-        env = SafeMetaDriveEnv(sim_config)
+        env = utils.FixedSafeMetaDriveEnv(sim_config)
         return env
 
     def create_env(self, seed: int = None) -> gym.Env:
@@ -78,8 +77,65 @@ class DataCollector:
         )
         return parallel_envs
 
+    def show_view(self, observations: np.ndarray | cp.ndarray) -> None:
+        frames = observations["image"]
+        if len(frames.shape) == 4:
+            image = frames[..., -1] * 255  # [0., 1.] to [0, 255]
+        elif len(frames.shape) == 5:
+            frames = frames[:, ..., -1]
+            image = np.concatenate([f for f in frames], axis=1)
+            image *= 255
+        image = image.astype(np.uint8)
+        # image: np.array = cp.asnumpy(image)
+
+        cv2.imshow("frame", image)
+        if cv2.waitKey(1) == ord("q"):
+            return
+
+    def collect_frames(self) -> np.ndarray | cp.ndarray:
+        frames = []
+        seed = self.config["seed"]
+        total_samples = self.config["training"]["steps"]
+        if True:
+            env = self.create_env(seed)
+            start_time = time.perf_counter()
+            reset_time, obs = utils.measure_time(env.reset)
+            print(f"Reset took: {reset_time}")
+            for frame_index in range(total_samples):
+                actions = np.array(
+                    [
+                        env.action_space.sample()
+                        for _ in range(self.config["simulation"]["simulations_count"])
+                    ]
+                )
+                env.step_async(actions)
+                obs = env.step_wait()
+                if self.config["simulation"]["show_view"]:
+                    self.show_view(obs[0])
+                frames.append(obs[:3])
+
+            end_time = time.perf_counter()
+            print("FPS:", frame_index / (end_time - start_time))
+            print("Time elapsed:", end_time - start_time)
+        return frames
+
+
+def test_policy(policy_file:str) -> None:
+    test_config = yaml.safe_load(open("configs/main.yaml", "r"))
+    collector = DataCollector(test_config)
+    model = PPO.load(policy_file)
+    env = collector.create_env()
+    obs = env.reset()
+    obs["image"] = utils.resize(obs["image"])
+    for _ in range(1000):
+        action, _ = model.predict(obs, deterministic=True)
+        obs, reward, done, info = env.step(action)
+        collector.show_view(obs)
+        obs["image"] = utils.resize(obs["image"])
+    env.close()
+
 def main() -> None:
-    config: dict = yaml.safe_load(open("../../configs/main.yaml", "r"))
+    config: dict = yaml.safe_load(open("./configs/main.yaml", "r"))
     print(f"Cores count: {os.cpu_count()}")
 
     random.seed(config["seed"])
@@ -88,15 +144,20 @@ def main() -> None:
 
     collector = DataCollector(config)
     
+    
+    policy_kwargs = dict(
+        features_extractor_class=ViTFeatureExtractor,
+    )
     model = PPO(
-        policy=ViTActorCriticPolicy,
+        policy="MultiInputPolicy",
         env=collector.create_env(),
         learning_rate=float(config["algorithm"]["learning_rate"]),
         n_steps=config["algorithm"]["batch_size"], #batch size, n_env*n_steps
         batch_size=config["algorithm"]["minibatch_size"], #minibatch size
         n_epochs = config["algorithm"]["n_epochs"], 
         gamma = config["algorithm"]["gamma"],
-        gae_lambda=config["algorithm"]["gae_lambda"], 
+        gae_lambda=config["algorithm"]["gae_lambda"],
+        policy_kwargs=policy_kwargs,
         # clip_range=
         # clip_range_vf=
         # ent_coef=
@@ -107,19 +168,26 @@ def main() -> None:
         device= "cuda" if torch.cuda.is_available() else "cpu",
         verbose=1,
     )
-    print(model.policy)
-    sys.exit(0)
+    # mlflow.log_param(key="policy_architecture", value=str(model.policy))
+    # print(model.policy)
 
+    # TODO: maybe create log file showing network architecture
     loggers = Logger(
         folder=None,
         output_formats=[HumanOutputFormat(sys.stdout), utils.MLflowOutputFormat()],
     )
     model.set_logger(loggers)
-    #TODO: Add parameters logging to mlflow
-    #TODO: Set mlflow experiments to differentiante test and real runs
-    with mlflow.start_run():
-        model.learn(total_timesteps=float(config["training"]["steps"]),
-                     log_interval=1, progress_bar=True)
+
+    # tags=tracking.get("tags", {})
+    with mlflow.start_run(log_system_metrics=True) as run:
+        flat_parameters_dict = utils.flat_dict(config)
+        mlflow.log_params(flat_parameters_dict)
+
+        model.learn(
+            total_timesteps=int(float(config["training"]["steps"])),
+            log_interval=1,
+            progress_bar=True,
+        )
     model.save("visual-transformer-policy-1")
 
 

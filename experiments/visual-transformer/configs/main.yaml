@@ -1,0 +1,20 @@
+environment:
+  window_size: [224, 224]
+  traffic_density: 0.00
+  stack_size: 4
+  accident_prob: 0.0
+  map: "CCCCCCCCCCCCCCC"
+  num_scenarios: 200
+simulation:
+  simulations_count: 1
+  show_view: False #currently works only in .collect_frames()
+seed: 0
+algorithm:
+  learning_rate: 1e-4
+  batch_size: 5000 # x num_envs
+  minibatch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+training:
+  steps: 1e5
