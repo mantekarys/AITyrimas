@@ -196,6 +196,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     #TODO: why just 2 actions in env action space?
-    test = utils.FixedSafeMetaDriveEnv()
     main()
     sys.exit(0)
