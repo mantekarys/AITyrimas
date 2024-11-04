@@ -21,81 +21,49 @@ class CustomCombinedExtractor(BaseFeaturesExtractor):
         # so put something dummy for now. PyTorch requires calling
         # nn.Module.__init__ before adding modules
         super().__init__(observation_space, features_dim=1)
-        device = (torch.device("cuda:0") if torch.cuda.is_available() else "cpu",)
-        # torch.Size([B, 84, 84, 3, 4])
-        # image shape: batch, {x, y}, chanels, time stack 4
-        image_shape: Box = observation_space.spaces["image"]
-        chanels = math.prod(image_shape.shape[-2:])
-
-        self.dinov2 = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14_reg")
-        self.dinov2 = self.dinov2.to(device[0])
+        # obs["vit_embeddings"] shape: batch, time stack 4, 256, 384
 
         self.embedding_compression_1 = nn.Sequential(
             nn.Conv2d(
                 in_channels=384, out_channels=64, kernel_size=1, stride=1, bias=False
             ),
             nn.LayerNorm((64, 16, 16)),
-            nn.ELU(),
+            nn.GELU(),
         )
-        # self.embedding_compression_1 = nn.Conv2d(
-        #     in_channels=384, out_channels=64, kernel_size=1, stride=1, bias=False
-        # )
-        # self.norm_1 = nn.LayerNorm((64, 16, 16))
-        # self.activate = nn.ELU()
-
         self.compression_2_and_linear = nn.Sequential(
             nn.Conv2d(
-                in_channels=64 * 4, out_channels=32, kernel_size=3, stride=1, bias=False
+                in_channels=64 * 4, out_channels=32, kernel_size=5, stride=1, bias=False
             ),
-            nn.LayerNorm((32, 14, 14)),
-            nn.ELU(),
+            nn.LayerNorm((32, 12, 12)),
+            nn.GELU(),
+            nn.Conv2d(
+                in_channels=32, out_channels=8, kernel_size=3, stride=1, bias=False
+            ),
+            nn.LayerNorm((8, 10, 10)),
+            nn.GELU(),
+            
             nn.Flatten(),
-            nn.Linear(in_features=6272, out_features=256, bias=False),
-            nn.LayerNorm((256)),
-            nn.ELU(),
+            nn.Linear(in_features=8*100, out_features=128, bias=False),
+            nn.LayerNorm((128)),
+            nn.GELU(),
         )
-        # self.embedding_compression_2 = nn.Conv2d(
-        #     in_channels=64 * 4, out_channels=32, kernel_size=3, stride=1, bias=False
-        # )
-        # self.norm_2 = nn.LayerNorm((32, 14, 14))
-        # self.flatten = nn.Flatten()
-        # self.last_compression = nn.Linear(
-        #     in_features=6272, out_features=256, bias=False
-        # )
-        # self.norm_3 = nn.LayerNorm((256))
 
-        # Update the features dim manually
-        self._features_dim = 256
+        self._features_dim = 128
 
     def forward(self, observations) -> torch.Tensor:
-        images: torch.Tensor = observations["image"]
-        chanels_third = images.permute((0, 4, 3, 1, 2))
-        shape = chanels_third.shape
-        stacked_frames = images.reshape(shape=tuple([shape[0] * shape[1], *shape[2:]]))
-        with torch.no_grad():
-            result = self.dinov2.forward_features(stacked_frames)
-            patch_embedings: torch.Tensor = result["x_norm_patchtokens"]
+        embeddings: torch.Tensor = observations["vit_embeddings"]
+        shape = embeddings.shape
+        stacked_frames_count = shape[0] * shape[1]
+        image_width = int(shape[2] ** (1 / 2))
 
+        chanels_third = embeddings.permute((0, 1, 3, 2))
+        stacked_frames = chanels_third.reshape(
+            (stacked_frames_count, shape[3], image_width, image_width)
+        )
 
-        separated_patches = patch_embedings.reshape(shape=tuple([-1, 16, 16, 384]))
-        chanels_second = separated_patches.permute((0, 3, 1, 2))
-
-        res = self.embedding_compression_1(chanels_second)
-        # res = self.norm_1(res)
-        # res: torch.Tensor = self.activate(res)
-
+        res = self.embedding_compression_1(stacked_frames)
         res = res.reshape((shape[0], shape[1] * 64, 16, 16))
-
         res = self.compression_2_and_linear(res)
-
-        # res = self.embedding_compression_2(res)
-        # res = self.norm_2(res)
-        # res = self.activate(res)
-
-        # res = self.flatten(res)
-        # res = self.last_compression(res)
-        # res = self.norm_3(res)
-        # res = self.activate(res)
         return res
 
 
@@ -124,22 +92,14 @@ class CustomNetwork(nn.Module):
 
         # Policy network
         self.policy_net = nn.Sequential(
-            # nn.Linear(feature_dim, 256),
-            # nn.LayerNorm((256)),
-            # nn.ReLU(),
-            nn.Linear(256, 64, bias=False),
+            nn.Linear(feature_dim, 64, bias=False),
             nn.LayerNorm(64),
-            # nn.ReLU(),
             nn.GELU(),
         )
         # Value network
         self.value_net = nn.Sequential(
-            # nn.Linear(feature_dim, 256, bias=False),
-            # nn.LayerNorm((256)),
-            # nn.ReLU(),
-            nn.Linear(256, 64, bias=False),
+            nn.Linear(feature_dim, 64, bias=False),
             nn.LayerNorm(64),
-            # nn.ReLU(),
             nn.GELU(),
         )
 
@@ -157,7 +117,7 @@ class CustomNetwork(nn.Module):
         return self.value_net(features)
 
 
-class CustomViTPolicy(ActorCriticPolicy):
+class CustomViTPolicy2(ActorCriticPolicy):
     def __init__(
         self,
         observation_space: gymnasium.spaces.Space,
@@ -193,7 +153,6 @@ class CustomViTPolicy(ActorCriticPolicy):
         self.optimizer = torch.optim.AdamW(
             params=parameters_to_train, lr=lr_schedule(1), **self.optimizer_kwargs
         )
-
 
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = CustomNetwork(self.features_dim)

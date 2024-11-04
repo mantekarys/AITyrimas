@@ -1,18 +1,22 @@
 environment:
-  window_size: [480, 480]
-  traffic_density: 0.0
+  window_size: [224, 224]
+  traffic_density: 0.05
   stack_size: 4
-  accident_prob: 0.0
-  map: "CCCCCCCCCCCCCC"
-  # map: "$$$$"
+  accident_prob: 0.05
+  map: "C$CC$C$CCCCC"
   num_scenarios: 200
 simulation:
-  simulations_count: 1
-  show_view: True 
+  simulations_count: 4
+  show_view: False
 seed: 1
 algorithm:
-  learning_rate: 4e-4
+  learning_rate: 3e-4
   learning_rate_decay: false
+  clip_range: 0.2
+  clip_range_vf: 10
+  ent_coef: 0.0
+  vf_coef: 1
+  max_grad_norm: 1
   batch_size: 512 # x num_envs
   minibatch_size: 512
   n_epochs: 5
