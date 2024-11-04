@@ -58,9 +58,9 @@ class DataCollector:
                 "window_size": tuple(self.config["environment"]["window_size"]),
                 "start_seed": seed if seed else self.seed,
                 "use_render": False,
-                "show_interface": True,
+                "show_interface": False,
                 "show_logo": False,
-                "show_fps": True,
+                "show_fps": False,
                 "crash_vehicle_done": False,
                 "crash_object_done": False,
                 "out_of_road_done": True,
@@ -209,16 +209,16 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
         )
         run: Run
         run_name = run.info.run_name
-        model.save(run_name)
+        model.save(os.path.join("models", run_name))
     parallel_envs.close()
 
 
 if __name__ == "__main__":
-    main("test_1.yaml")
-    # main("test_3.yaml", "enthused-crane-717.zip")
-    # test_policy("sincere-ape-126.zip", 2000)
+    # main("test_1.yaml")
+    # main("test_3.yaml", "models/enthused-crane-717.zip")
+    test_policy("models/sincere-ape-126.zip", 2000)
 
 
 # different environments
 # torch compile?
-#add episode statistics only when episode actualy ended. In
+# add episode statistics only when episode actualy ended. In
