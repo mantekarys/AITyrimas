@@ -1,23 +1,26 @@
 environment:
-  window_size: [84, 84]
-  traffic_density: 0.00
+  window_size: [480, 480]
+  traffic_density: 0.0
   stack_size: 4
   accident_prob: 0.0
-  map: "CCCCCCCCCCCCCCC"
+  map: "CCCCCCCCCCCCCC"
+  # map: "$$$$"
   num_scenarios: 200
 simulation:
-  simulations_count: 4
-  show_view: True #currently works only in .collect_frames()
+  simulations_count: 1
+  show_view: True 
 seed: 1
 algorithm:
-  learning_rate: 3e-4
-  batch_size: 500 # x num_envs
-  minibatch_size: 64
-  n_epochs: 10
+  learning_rate: 4e-4
+  learning_rate_decay: false
+  batch_size: 512 # x num_envs
+  minibatch_size: 512
+  n_epochs: 5
   gamma: 0.99
   gae_lambda: 0.95
 training:
-  steps: 5e5
+  steps: 1e5
 mlflow:  
   tracking_uri: http://192.168.8.121:5000
-  experiment_name: MetaDrive ViT testing
+  # experiment_name: MetaDrive ViT testing
+  experiment_name: Default
