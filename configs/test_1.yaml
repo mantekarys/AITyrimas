@@ -1,10 +1,10 @@
 environment:
   window_size: [224, 224]
-  traffic_density: 0.1
+  traffic_density: 0.15
   stack_size: 4
   accident_prob: 0.8
-  map: "C$CC$C$C$CCCC"
-  # map: "CCCCCCCCCCCCCCC"
+  # map: "C$CC$C$C$CCCC"
+  map: "CCCCCCCCCCCCCCC"
   num_scenarios: 200
 simulation:
   simulations_count: 3
@@ -14,10 +14,10 @@ algorithm:
   learning_rate: 4e-4
   learning_rate_decay: True
   clip_range: 0.2
-  clip_range_decay: False
+  clip_range_decay: True
   clip_range_vf: 1
-  clip_range_vf_decay: False
-  ent_coef: 0.01
+  clip_range_vf_decay: True
+  ent_coef: 0.1
   vf_coef: 1
   max_grad_norm: 1
   batch_size: 1024 # x num_envs

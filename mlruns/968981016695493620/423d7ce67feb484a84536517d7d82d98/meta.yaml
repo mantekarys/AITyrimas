@@ -1,0 +1,15 @@
+artifact_uri: file:///media/Programs/Code/AITyrimas/mlruns/968981016695493620/423d7ce67feb484a84536517d7d82d98/artifacts
+end_time: 1731094129637
+entry_point_name: ''
+experiment_id: '968981016695493620'
+lifecycle_stage: active
+run_id: 423d7ce67feb484a84536517d7d82d98
+run_name: chill-owl-867
+run_uuid: 423d7ce67feb484a84536517d7d82d98
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1731087269742
+status: 3
+tags: []
+user_id: zygis

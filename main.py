@@ -62,7 +62,7 @@ class DataCollector:
                 "window_size": tuple(self.config["environment"]["window_size"]),
                 "start_seed": seed if seed else self.seed,
                 "use_render": False,
-                "show_interface": False,
+                "show_interface": True,
                 "show_logo": False,
                 "show_fps": False,
                 "crash_vehicle_done": False,
