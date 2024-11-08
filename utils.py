@@ -92,7 +92,15 @@ class FixedSafeMetaDriveEnv(gym.Env):
         else:
             obs = {"vit_embeddings": self.get_dino_features(obs["image"])}
         step_infos = self.step_info_adapter(step_infos)
-        # print(rewards)
+        velocity = step_infos["velocity"]
+        acceleration = step_infos['acceleration']
+        if velocity < 1 and acceleration <= 0:
+            rewards -=(1-velocity)*0.1
+        elif velocity > 15 and acceleration > 0:
+            rewards -= (velocity-15)/5
+        # print(velocity)
+        # print(f"Reward:  {rewards}")
+        # print(f"Episode: {step_infos['episode_reward']}")
         return obs, rewards, terminateds, truncateds, step_infos
 
     def reset(self, *args, **kwargs):
@@ -125,10 +133,10 @@ class FixedSafeMetaDriveEnv(gym.Env):
         return str(self)
 
 
-def linear_decay_schedule(lr_start: float) -> Callable[[float], float]:
+def linear_decay_schedule(lr_start: float, target_share:float=0.01) -> Callable[[float], float]:
+    final_value=lr_start*target_share
     def schedule(progress_left: float) -> float:
-        return lr_start * progress_left
-
+        return (lr_start-final_value) * progress_left + final_value
     return schedule
 
 

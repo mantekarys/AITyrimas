@@ -49,7 +49,11 @@ class DataCollector:
         sim_config = self.config["environment"].copy()
         sim_config.update(
             {
-                "out_of_road_penalty": 20,
+                # "on_lane_line_penalty": 0.0,#1.0
+                # "steering_range_penalty": 0.0,#0.5
+                "speed_reward": 0.0,
+                "use_lateral_reward": False,
+                "out_of_road_penalty": 30,
                 "image_observation": True,
                 "vehicle_config": dict(image_source="main_camera"),
                 "sensors": {"main_camera": ()},
@@ -64,7 +68,7 @@ class DataCollector:
                 "crash_vehicle_done": False,
                 "crash_object_done": False,
                 "out_of_road_done": True,
-                "on_continuous_line_done": False,
+                "on_continuous_line_done": True,
             }
         )
         env = utils.FixedSafeMetaDriveEnv(
@@ -127,8 +131,13 @@ class DataCollector:
         return frames
 
 
-def test_policy(policy_file: str, frames_count: int = 1000) -> None:
-    test_config = yaml.safe_load(open("configs/main.yaml", "r"))
+def test_policy(
+    policy_file: str,
+    frames_count: int = 1000,
+    config: str = "main.yaml",
+    just_embeddings=False,
+) -> None:
+    test_config = yaml.safe_load(open(f"configs/{config}", "r"))
     collector = DataCollector(test_config)
     model = PPO.load(policy_file)
     env = collector.create_env()
@@ -136,6 +145,8 @@ def test_policy(policy_file: str, frames_count: int = 1000) -> None:
     obs["image"] = utils.resize(obs["image"], (224, 224))
     for _ in range(frames_count):
         with torch.no_grad():
+            if just_embeddings:
+                obs = {"vit_embeddings": obs["vit_embeddings"]}
             action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         collector.show_view(obs)
@@ -157,13 +168,23 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
     np.random.seed(config["seed"])
     torch.set_float32_matmul_precision("high")
 
-    collector = DataCollector(config)
     if config["algorithm"]["learning_rate_decay"]:
         lr = utils.linear_decay_schedule(float(config["algorithm"]["learning_rate"]))
     else:
         lr = config["algorithm"]["learning_rate"]
-    parallel_envs = collector.create_env()
 
+    if config["algorithm"]["clip_range_decay"]:
+        clip = utils.linear_decay_schedule(float(config["algorithm"]["clip_range"]))
+    else:
+        clip = config["algorithm"]["clip_range"]
+
+    if config["algorithm"]["clip_range_vf_decay"]:
+        clip_vf = utils.linear_decay_schedule(float(config["algorithm"]["clip_range_vf"]))
+    else:
+        clip_vf = config["algorithm"]["clip_range_vf"]
+
+    collector = DataCollector(config)
+    parallel_envs = collector.create_env()
     model = PPO(
         policy=CustomViTPolicy2,
         env=parallel_envs,
@@ -173,8 +194,8 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
         n_epochs=config["algorithm"]["n_epochs"],
         gamma=config["algorithm"]["gamma"],
         gae_lambda=config["algorithm"]["gae_lambda"],
-        clip_range=config["algorithm"]["clip_range"],
-        clip_range_vf=config["algorithm"]["clip_range_vf"],
+        clip_range=clip,
+        clip_range_vf=clip_vf,
         ent_coef=config["algorithm"]["ent_coef"],
         vf_coef=config["algorithm"]["vf_coef"],
         max_grad_norm=config["algorithm"]["max_grad_norm"],
@@ -197,8 +218,8 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
             load_path_or_dict=base_model,
             device="cuda" if torch.cuda.is_available() else "cpu",
         )
-    # tags=tracking.get("tags", {})
-    with mlflow.start_run(log_system_metrics=True) as run:
+    tags=tracking.get("tags", {})
+    with mlflow.start_run(log_system_metrics=True, tags=tags) as run:
         flat_parameters_dict = utils.flat_dict(config)
         mlflow.log_params(flat_parameters_dict)
 
@@ -215,8 +236,9 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
 
 if __name__ == "__main__":
     # main("test_1.yaml")
-    # main("test_3.yaml", "models/enthused-crane-717.zip")
-    test_policy("models/sincere-ape-126.zip", 2000)
+    # main("test_1.yaml", "models/upset-asp-587.zip")
+    # test_policy("models/sincere-ape-126.zip", 2000)
+    test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
 
 
 # different environments
