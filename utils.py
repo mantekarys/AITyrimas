@@ -1,19 +1,18 @@
 import time
 from typing import Any, Callable, Dict, Tuple, Union
-
 import cupy as cp
 import gymnasium as gym
 import gymnasium.spaces.dict
 import mlflow
 import numpy as np
-
 # import cv2
 import torch
-import torchvision
-from gymnasium.spaces import Box, Space
-from metadrive import MetaDriveEnv, SafeMetaDriveEnv
+from gymnasium.spaces import Box
+from matplotlib import pyplot as plt
+from metadrive import SafeMetaDriveEnv
 from stable_baselines3.common.logger import KVWriter
 from torchvision import transforms
+import seaborn as sns
 
 
 def resize(image: np.ndarray, target_size: Tuple[int, int] = (224)):
@@ -53,7 +52,7 @@ class FixedSafeMetaDriveEnv(gym.Env):
         self.reward_range = getattr(self.env, "reward_range", None)
         self.spec = getattr(self.env, "spec", None)
 
-    def get_dino_features(self, image: np.ndarray | cp.ndarray):
+    def get_dino_features(self, image):
         if isinstance(image, np.ndarray):
             image_on_gpu = torch.tensor(image, device=self.device[0])
             if image_on_gpu.shape[0] != 224 and image_on_gpu.shape[1] != 224:
@@ -181,3 +180,40 @@ class MLflowOutputFormat(KVWriter):
             if isinstance(value, np.ScalarType):
                 if not isinstance(value, str):
                     mlflow.log_metric(key, value, step)
+
+
+def display_results(df):
+    # Set up the plotting style
+    sns.set(style="whitegrid")
+
+    # Plot Success Rate at each stage
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x="Stage", y="Success Rate", data=df)
+    plt.title("Success Rate by Stage")
+    plt.ylabel("Success Rate")
+    plt.xlabel("Stage")
+    plt.show()
+
+    # Plot Average Reward per Episode
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x="Stage", y="Average Reward per Episode", data=df)
+    plt.title("Average Reward per Episode by Stage")
+    plt.ylabel("Average Reward")
+    plt.xlabel("Stage")
+    plt.show()
+
+    # Plot Collision Rate per Episode
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x="Stage", y="Collision Rate per Episode", data=df)
+    plt.title("Collision Rate per Episode by Stage")
+    plt.ylabel("Collision Rate")
+    plt.xlabel("Stage")
+    plt.show()
+
+    # Plot Average Distance Traveled
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x="Stage", y="Average Distance Traveled", data=df)
+    plt.title("Average Distance Traveled by Stage")
+    plt.ylabel("Distance Traveled")
+    plt.xlabel("Stage")
+    plt.show()

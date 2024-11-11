@@ -8,19 +8,58 @@ environment:
   num_scenarios: 200
 simulation:
   simulations_count: 1
-  show_view: True 
-seed: 1
+  show_view: True
+seed: 42
+mlflow:
+  tracking_uri: "http://localhost:5000"
+  experiment_name: "Curriculum Learning Experiment"
+  tags:
+    author: "team"
+    project: "autonomous_navigation"
+
 algorithm:
-  learning_rate: 4e-4
-  learning_rate_decay: false
-  batch_size: 512 # x num_envs
-  minibatch_size: 512
-  n_epochs: 5
+  learning_rate: 0.0003
+  learning_rate_decay: true
+  clip_range: 0.2
+  clip_range_decay: true
+  clip_range_vf: 0.2
+  clip_range_vf_decay: false
+  batch_size: 64
+  minibatch_size: 16
+  n_epochs: 10
   gamma: 0.99
   gae_lambda: 0.95
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+
 training:
-  steps: 1e5
-mlflow:  
-  tracking_uri: http://192.168.8.121:5000
-  # experiment_name: MetaDrive ViT testing
-  experiment_name: Default
+  steps: 100000
+
+
+stage_criteria:
+  1:
+    success_rate: 0.2
+    evaluation_window: 10
+  2:
+    success_rate: 0.3
+    evaluation_window: 20
+    collision_rate: 0.2
+  3:
+    success_rate: 0.4
+    collision_rate: 0.15
+    evaluation_window: 30
+
+stage_config:
+  1:
+    traffic_density: 0.1
+    horizon: 500
+    map: ["S", "C", "r"]  # Simple maps with straight, circular, and ramp sections
+  2:
+    traffic_density: 0.3
+    horizon: 1000
+    map: ["X", "Y", "Z"]  # Intermediate maps with intersections and splits
+  3:
+    traffic_density: 0.5
+    horizon: 2000
+    map: ["RRR", "XYO", "YZC", "XYZR", "RCOS", "XCR", "OYZS", "RXCS", "SYXO", "RCOXYZ"]  # Complex maps with multiple segments: roundabouts, intersections, sharp curves, combined challenging scenarios

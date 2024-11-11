@@ -1,16 +1,9 @@
-import math
-from typing import Any, Callable, Dict, Tuple, Union
-
-import dinov2
+from typing import Callable, Tuple
 import gymnasium as gym
 import gymnasium.spaces
-import numpy as np
-import stable_baselines3 as sb3
 import torch
 import torch.nn as nn
 import torch.optim
-from dinov2.hub.backbones import dinov2_vitb14_reg
-from gymnasium.spaces import Box
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
