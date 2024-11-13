@@ -231,6 +231,9 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
     torch.manual_seed(config["seed"])
     np.random.seed(config["seed"])
     torch.set_float32_matmul_precision("high")
+    torch.backends.cudnn.benchmark = True
+
+
 
     if config["algorithm"]["learning_rate_decay"]:
         lr = utils.linear_decay_schedule(float(config["algorithm"]["learning_rate"]))

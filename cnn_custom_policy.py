@@ -13,9 +13,23 @@ class CustomResNetExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Dict):
         super().__init__(observation_space, features_dim=2048)
 
+        # Determine the device
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         # Load pretrained ResNet50 model
-        resnet = models.resnet50(weights = "ResNet50_Weights.DEFAULT")
+        # resnet = models.resnet50(weights="ResNet50_Weights.DEFAULT")
+        resnet = models.resnet18(weights="ResNet18_Weights.DEFAULT")
         self.resnet = nn.Sequential(*list(resnet.children())[:-1])  # Remove the classifier
+
+        # Move the ResNet model to the device
+        self.resnet = self.resnet.to(self.device)
+
+        # Freeze the ResNet weights
+        for param in self.resnet.parameters():
+            param.requires_grad = False
+
+        # Set the ResNet model to evaluation mode (optional but recommended)
+        self.resnet.eval()
 
         # Normalization transform
         self.normalize = transforms.Normalize(
@@ -25,7 +39,6 @@ class CustomResNetExtractor(BaseFeaturesExtractor):
 
     def forward(self, observations: Dict[str, torch.Tensor]) -> torch.Tensor:
         images = observations["image"]  # Shape: [batch_size, H, W, C, F]
-        # print(f"Original images shape: {images.shape}")
 
         if images.dim() != 5:
             raise ValueError(f"Expected images to have 5 dimensions, but got {images.dim()} dimensions.")
@@ -33,11 +46,12 @@ class CustomResNetExtractor(BaseFeaturesExtractor):
         batch_size, H, W, C, F = images.shape
 
         # Permute and reshape to bring frames into batch dimension
-        images = images.permute(0, 4, 3, 1, 2)  # Now [batch_size, F, C, H, W]
-        images = images.reshape(batch_size * F, C, H, W)  # Now [batch_size * F, C, H, W]
-        # print(f"Images reshaped for model input: {images.shape}")
-        # raise ValueError(f"STOP")
-        
+        images = images.permute(0, 4, 3, 1, 2)  # [batch_size, F, C, H, W]
+        images = images.reshape(batch_size * F, C, H, W)  # [batch_size * F, C, H, W]
+
+        # Move images to the same device as the model
+        images = images.to(self.device)
+
         # Convert to float and normalize
         images = images.float() / 255.0
         images = self.normalize(images)
@@ -46,15 +60,17 @@ class CustomResNetExtractor(BaseFeaturesExtractor):
         if images.shape[2] != 224 or images.shape[3] != 224:
             images = nn.functional.interpolate(images, size=(224, 224), mode='bilinear', align_corners=False)
 
-        # Pass images through ResNet
-        features = self.resnet(images)  # Output: [batch_size * F, 2048, 1, 1]
-        features = features.view(features.size(0), -1)  # Now [batch_size * F, 2048]
+        # Pass images through ResNet (in evaluation mode)
+        with torch.no_grad():  # Ensure gradients are not computed
+            features = self.resnet(images)  # Output: [batch_size * F, 2048, 1, 1]
+
+        features = features.view(features.size(0), -1)  # [batch_size * F, 2048]
 
         # Reshape to [batch_size, F, feature_dim]
         features = features.view(batch_size, F, -1)
 
-        # Aggregate features over frames
-        features = features.mean(dim=1)  # Now [batch_size, 2048]
+        # Aggregate features over frames (e.g., mean pooling)
+        features = features.mean(dim=1)  # [batch_size, 2048]
 
         return features
 
