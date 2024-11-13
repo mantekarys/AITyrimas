@@ -1,5 +1,5 @@
 environment:
-  window_size: [480, 480]
+  window_size: [224, 224]
   traffic_density: 0.1
   stack_size: 4
   accident_prob: 0.8

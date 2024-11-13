@@ -29,6 +29,120 @@ def resize(image: np.ndarray, target_size: Tuple[int, int] = (224)):
     return primary_shape
 
 
+
+
+class CNN_FixedSafeMetaDriveEnv(gym.Env):
+    def __init__(
+        self, return_image: bool = True, env_config: dict = None, *args, **kwargs
+    ):
+        self.env = SafeMetaDriveEnv(env_config, *args, **kwargs)
+        self.return_image = return_image
+
+        # Remove DINOv2 model loading
+        # self.device = torch.device("cuda:0") if torch.cuda.is_available() else "cpu"
+        # self.dinov2 = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14_reg")
+        # self.dinov2 = self.dinov2.to(self.device)
+
+        # Adjust the observation space
+        observations_spaces = {}
+        if self.return_image:
+            observations_spaces["state"] = self.env.observation_space["state"]
+            observations_spaces["image"] = self.env.observation_space["image"]
+        else:
+            observations_spaces["state"] = self.env.observation_space["state"]
+        # Remove 'vit_embeddings' from the observation space
+        # observations_spaces["vit_embeddings"] = Box(low=0, high=1, shape=(4, 256, 384))
+        self.observation_space = gym.spaces.Dict(spaces=observations_spaces)
+
+        self.action_space = self.env.action_space
+        self.render_mode = self.env.render_mode
+        self.reward_range = getattr(self.env, "reward_range", None)
+        self.spec = getattr(self.env, "spec", None)
+
+    # Remove the get_dino_features method
+    # def get_dino_features(self, image):
+    #     ...
+
+    # Remove the resize_image method
+    # def resize_image(self, image: torch.Tensor) -> torch.Tensor:
+    #     ...
+
+    def step_info_adapter(self, step_info: dict) -> dict:
+        step_info["episode"] = {
+            "l": step_info.get("episode_length", 0),
+            "r": step_info.get("episode_reward", 0),
+        }
+        step_info["is_success"] = step_info.get("arrive_dest", False)
+        return step_info
+
+    def step(self, action: Any):
+        obs, rewards, terminated, truncated, step_infos = self.env.step(action)
+
+        # if "image" in obs:
+        #     print(f"Step obs['image'] shape: {obs['image'].shape}")  # Add this line
+
+        # Remove DINOv2 feature extraction
+        # if self.return_image:
+        #     obs["vit_embeddings"] = self.get_dino_features(obs["image"])
+        # else:
+        #     obs = {"vit_embeddings": self.get_dino_features(obs["image"])}
+
+        step_infos = self.step_info_adapter(step_infos)
+        velocity = step_infos["velocity"]
+        acceleration = step_infos['acceleration']
+        if velocity < 1 and acceleration <= 0:
+            rewards -= (1 - velocity) * 0.1
+        elif velocity > 15 and acceleration > 0:
+            rewards -= (velocity - 15) / 5
+
+        # Ensure that obs includes 'image' in the correct format if necessary
+        # If any preprocessing is needed, do it here
+
+        return obs, rewards, terminated, truncated, step_infos
+
+    def reset(self, *args, **kwargs):
+        obs, step_infos = self.env.reset(*args, **kwargs)
+
+        # if "image" in obs:
+        #     print(f"Reset obs['image'] shape: {obs['image'].shape}")  # Add this line
+
+        # Remove DINOv2 feature extraction
+        # if self.return_image:
+        #     obs["vit_embeddings"] = self.get_dino_features(obs["image"])
+        # else:
+        #     obs = {"vit_embeddings": self.get_dino_features(obs["image"])}
+
+        step_infos = self.step_info_adapter(step_infos)
+
+        # Ensure that obs includes 'image' in the correct format if necessary
+        # If any preprocessing is needed, do it here
+
+        return obs, step_infos
+    
+
+    def render(self) -> Any:
+        """Renders the environment.
+
+        Returns:
+            The rendering of the environment, depending on the render mode
+        """
+        return self.env.render(mode=self.render_mode)
+
+    def close(self):
+        """Closes the environment."""
+        self.env.close()
+
+    def __str__(self):
+        """Returns the wrapper name and the unwrapped environment string."""
+        return f"<{type(self).__name__}{self.env}>"
+
+    def __repr__(self):
+        """Returns the string representation of the wrapper."""
+        return str(self)
+
+
+
+
 class FixedSafeMetaDriveEnv(gym.Env):
     def __init__(
         self, return_image: bool = True, env_config: dict = None, *args, **kwargs
@@ -52,6 +166,7 @@ class FixedSafeMetaDriveEnv(gym.Env):
         self.reward_range = getattr(self.env, "reward_range", None)
         self.spec = getattr(self.env, "spec", None)
 
+
     def get_dino_features(self, image):
         if isinstance(image, np.ndarray):
             image_on_gpu = torch.tensor(image, device=self.device[0])
@@ -66,6 +181,7 @@ class FixedSafeMetaDriveEnv(gym.Env):
             result = self.dinov2.forward_features(chanels_third)
         patch_embedings: torch.Tensor = result["x_norm_patchtokens"]
         return patch_embedings.cpu().numpy()
+
 
     def resize_image(self, image: torch.Tensor) -> torch.Tensor:
         transformation = transforms.Resize(size=(224, 224))
@@ -130,6 +246,9 @@ class FixedSafeMetaDriveEnv(gym.Env):
     def __repr__(self):
         """Returns the string representation of the wrapper."""
         return str(self)
+    
+
+
 
 
 def linear_decay_schedule(lr_start: float, target_share:float=0.01) -> Callable[[float], float]:

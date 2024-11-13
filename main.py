@@ -17,7 +17,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.logger import HumanOutputFormat, Logger
 from stable_baselines3.common.vec_env import SubprocVecEnv
 import utils
-from custom_policy_3 import CustomViTPolicy2
+from cnn_custom_policy import CustomResNetPolicy
 
 
 class DataCollector:
@@ -50,13 +50,13 @@ class DataCollector:
                 "show_fps": False,
                 "crash_vehicle_done": False,
                 "crash_object_done": False,
-                "out_of_road_done": True,
+                "out_of_route_done": True,
                 "on_continuous_line_done": True,
             }
         )
         sim_config["map"] = random.choice(self.maps)
 
-        env = utils.FixedSafeMetaDriveEnv(
+        env = utils.CNN_FixedSafeMetaDriveEnv(
             return_image=self.return_image, env_config=sim_config
         )
 
@@ -221,9 +221,11 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
         raise ValueError("No config file was given!")
     config: dict = yaml.safe_load(open("configs/" + config_file, "r"))
     tracking = config.pop("mlflow")
-    if "tracking_uri" in tracking:
-        mlflow.set_tracking_uri(tracking["tracking_uri"])
-    mlflow.set_experiment(tracking["experiment_name"])
+
+    # if "tracking_uri" in tracking:
+    #     mlflow.set_tracking_uri(tracking["tracking_uri"])
+    # mlflow.set_experiment(tracking["experiment_name"])
+
     print(f"Cores count: {os.cpu_count()}")
     random.seed(config["seed"])
     torch.manual_seed(config["seed"])
@@ -263,7 +265,7 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
 
         if model is None:
             model = PPO(
-                policy=CustomViTPolicy2,
+                policy=CustomResNetPolicy,
                 env=parallel_envs,
                 learning_rate=lr,
                 n_steps=config["algorithm"]["batch_size"],  # batch size, n_env*n_steps
@@ -341,10 +343,12 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
 
 
 if __name__ == "__main__":
-    # main("test_1.yaml")
+
+    main("main.yaml")
+
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
-    test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
+    # test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
 
 
 # different environments
