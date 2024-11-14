@@ -6,6 +6,7 @@ import gymnasium as gym
 import gymnasium.spaces.dict
 import mlflow
 import numpy as np
+import timm
 
 # import cv2
 import torch
@@ -38,14 +39,14 @@ class FixedSafeMetaDriveEnv(gym.Env):
         self.return_image = return_image
 
         self.device = (torch.device("cuda:0") if torch.cuda.is_available() else "cpu",)
-        self.dinov2 = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14_reg")
+        self.dinov2 = timm.create_model('vit_base_patch16_224', pretrained=True, num_classes=0)
         self.dinov2 = self.dinov2.to(self.device[0])
 
         observations_shapes = {}
         if self.return_image:
             observations_shapes["state"] = self.env.observation_space["state"]
             observations_shapes["image"] = self.env.observation_space["image"]
-        observations_shapes["vit_embeddings"] = Box(low=0, high=1, shape=(4, 256, 384))
+        observations_shapes["vit_embeddings"] = Box(low=0, high=1, shape=(4, 197, 768))
         self.observation_space = gymnasium.spaces.dict.Dict(spaces=observations_shapes)
 
         self.action_space = self.env.action_space
@@ -65,7 +66,9 @@ class FixedSafeMetaDriveEnv(gym.Env):
         # stacked_frames = image_on_gpu.reshape(shape=tuple([shape[0] * shape[1], *shape[2:]]))
         with torch.no_grad():
             result = self.dinov2.forward_features(chanels_third)
-        patch_embedings: torch.Tensor = result["x_norm_patchtokens"]
+        # dino: torch.Size([4, 256, 384])
+        # vit: torch.Size([4, 197, 768])
+        patch_embedings: torch.Tensor = result
         return patch_embedings.cpu().numpy()
 
     def resize_image(self, image: torch.Tensor) -> torch.Tensor:

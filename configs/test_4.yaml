@@ -1,0 +1,29 @@
+environment:
+  window_size: [224, 224]
+  traffic_density: 0.1
+  stack_size: 4
+  accident_prob: 0.1
+  map: "CCCCCCCCCCCCCCC"
+  num_scenarios: 200
+simulation:
+  simulations_count: 1
+  show_view: True
+seed: 1
+algorithm:
+  learning_rate: 3e-4
+  learning_rate_decay: False
+  clip_range: 0.1
+  clip_range_vf: 1
+  ent_coef: 0.01
+  vf_coef: 1
+  max_grad_norm: 1
+  batch_size: 100 # x num_envs
+  minibatch_size: 100
+  n_epochs: 3
+  gamma: 0.99
+  gae_lambda: 0.95
+training:
+  steps: 5e4
+mlflow:  
+  tracking_uri: http://127.0.0.1:5000
+  experiment_name: MetaDrive ViT testing 2

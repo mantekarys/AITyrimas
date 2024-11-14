@@ -30,9 +30,9 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import utils
-from custom_policy_1 import CustomCNNPolicy
-from custom_policy_2 import CustomViTPolicy
-from custom_policy_3 import CustomViTPolicy2
+# from custom_policy_1 import CustomCNNPolicy
+# from custom_policy_2 import CustomViTPolicy
+from custom_policy_4 import CustomViTPolicy2
 
 
 class DataCollector:
@@ -127,7 +127,7 @@ class DataCollector:
         return frames
 
 
-def test_policy(policy_file: str, frames_count: int = 1000) -> None:
+def test_policy(policy_file: str, frames_count: int = 1000, just_embeddings=False) -> None:
     test_config = yaml.safe_load(open("configs/main.yaml", "r"))
     collector = DataCollector(test_config)
     model = PPO.load(policy_file)
@@ -136,6 +136,8 @@ def test_policy(policy_file: str, frames_count: int = 1000) -> None:
     obs["image"] = utils.resize(obs["image"], (224, 224))
     for _ in range(frames_count):
         with torch.no_grad():
+            if just_embeddings:
+                obs = {"vit_embeddings": obs["vit_embeddings"]}
             action, _ = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         collector.show_view(obs)
@@ -214,9 +216,9 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
 
 
 if __name__ == "__main__":
-    # main("test_1.yaml")
+    main("test_4.yaml")
     # main("test_3.yaml", "models/enthused-crane-717.zip")
-    test_policy("models/sincere-ape-126.zip", 2000)
+    # test_policy("models/bald-tern-395.zip", 2000, just_embeddings=True)
 
 
 # different environments
