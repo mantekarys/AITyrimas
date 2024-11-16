@@ -11,7 +11,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 class CustomResNetExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Dict):
-        super().__init__(observation_space, features_dim=2048)
+        super().__init__(observation_space, features_dim=512)
 
         # Determine the device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
