@@ -3,6 +3,7 @@ import random
 import sys
 import time
 from functools import partial
+
 import cupy as cp
 import cv2
 import gymnasium as gym
@@ -16,6 +17,7 @@ from mlflow.entities.run import Run
 from stable_baselines3 import PPO
 from stable_baselines3.common.logger import HumanOutputFormat, Logger
 from stable_baselines3.common.vec_env import SubprocVecEnv
+
 import utils
 from custom_policy_3 import CustomViTPolicy2
 
@@ -50,7 +52,7 @@ class DataCollector:
                 "show_fps": False,
                 "crash_vehicle_done": False,
                 "crash_object_done": False,
-                "out_of_road_done": True,
+                "out_of_road_done": False,
                 "on_continuous_line_done": True,
             }
         )
@@ -344,7 +346,7 @@ if __name__ == "__main__":
     # main("test_1.yaml")
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
-    test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
+    test_policy("models/upset-asp-587.zip", 2000, config="test_1.yaml", just_embeddings=True)
 
 
 # different environments
