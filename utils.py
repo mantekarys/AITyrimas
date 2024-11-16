@@ -1,10 +1,13 @@
 import time
 from typing import Any, Callable, Dict, Tuple, Union
+
 import cupy as cp
 import gymnasium as gym
 import gymnasium.spaces.dict
 import mlflow
 import numpy as np
+import seaborn as sns
+
 # import cv2
 import torch
 from gymnasium.spaces import Box
@@ -12,7 +15,6 @@ from matplotlib import pyplot as plt
 from metadrive import SafeMetaDriveEnv
 from stable_baselines3.common.logger import KVWriter
 from torchvision import transforms
-import seaborn as sns
 
 
 def resize(image: np.ndarray, target_size: Tuple[int, int] = (224)):
@@ -101,7 +103,7 @@ class CNN_FixedSafeMetaDriveEnv(gym.Env):
         return obs, rewards, terminated, truncated, step_infos
 
     def reset(self, *args, **kwargs):
-        obs, step_infos = self.env.reset(*args, **kwargs)
+        obs, step_infos = self.env.reset()
 
         # if "image" in obs:
         #     print(f"Reset obs['image'] shape: {obs['image'].shape}")  # Add this line
