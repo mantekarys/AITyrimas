@@ -1,29 +1,34 @@
 environment:
   window_size: [224, 224]
-  traffic_density: 0.00
+  traffic_density: 0.15
   stack_size: 4
-  accident_prob: 0.5
+  accident_prob: 0.8
   map: "CCCCCCCCCCCCCCC"
   num_scenarios: 200
 simulation:
-  simulations_count: 4
-  show_view: False
+  simulations_count: 3
+  show_view: True
 seed: 1
 algorithm:
-  learning_rate: 3e-4
-  learning_rate_decay: False
-  clip_range: 0.1
+  learning_rate: 4e-4
+  learning_rate_decay: True
+  clip_range: 0.2
+  clip_range_decay: True
   clip_range_vf: 1
-  ent_coef: 0.01
+  clip_range_vf_decay: True
+  ent_coef: 0.1
   vf_coef: 1
   max_grad_norm: 1
-  batch_size: 512 # x num_envs
+  batch_size: 1024 # x num_envs
   minibatch_size: 512
   n_epochs: 5
   gamma: 0.99
   gae_lambda: 0.95
 training:
-  steps: 2e5
+  steps: 1e5
 mlflow:  
-  tracking_uri: http://192.168.8.121:5000
+  # tracking_uri: http://192.168.8.121:5000
   experiment_name: MetaDrive ViT testing
+  # experiment_name: Default
+  tags:
+    type: "ResNet18"

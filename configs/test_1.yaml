@@ -1,14 +1,13 @@
 environment:
-  window_size: [224, 224]
+  window_size: [480, 480]
   traffic_density: 0.15
   stack_size: 4
   accident_prob: 0.8
-  # map: "C$CC$C$C$CCCC"
   map: "CCCCCCCCCCCCCCC"
   num_scenarios: 200
 simulation:
-  simulations_count: 3
-  show_view: False
+  simulations_count: 1
+  show_view: True
 seed: 1
 algorithm:
   learning_rate: 4e-4
@@ -32,4 +31,4 @@ mlflow:
   experiment_name: MetaDrive ViT testing
   # experiment_name: Default
   tags:
-    type: "DinoV2"
+    type: "ResNet18"
