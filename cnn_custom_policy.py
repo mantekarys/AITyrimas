@@ -13,68 +13,10 @@ class CustomResNetExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Dict):
         super().__init__(observation_space, features_dim=512)
 
-        # Determine the device
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        # Load pretrained ResNet50 model
-        # resnet = models.resnet50(weights="ResNet50_Weights.DEFAULT")
-        resnet = models.resnet18(weights="ResNet18_Weights.DEFAULT")
-        self.resnet = nn.Sequential(*list(resnet.children())[:-1])  # Remove the classifier
-
-        # Move the ResNet model to the device
-        self.resnet = self.resnet.to(self.device)
-
-        # Freeze the ResNet weights
-        for param in self.resnet.parameters():
-            param.requires_grad = False
-
-        # Set the ResNet model to evaluation mode (optional but recommended)
-        self.resnet.eval()
-
-        # Normalization transform
-        self.normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],  # ImageNet mean
-            std=[0.229, 0.224, 0.225]    # ImageNet std
-        )
-
     def forward(self, observations: Dict[str, torch.Tensor]) -> torch.Tensor:
-        images = observations["image"]  # Shape: [batch_size, H, W, C, F]
-
-        if images.dim() != 5:
-            raise ValueError(f"Expected images to have 5 dimensions, but got {images.dim()} dimensions.")
-
-        batch_size, H, W, C, F = images.shape
-
-        # Permute and reshape to bring frames into batch dimension
-        images = images.permute(0, 4, 3, 1, 2)  # [batch_size, F, C, H, W]
-        images = images.reshape(batch_size * F, C, H, W)  # [batch_size * F, C, H, W]
-
-        # Move images to the same device as the model
-        images = images.to(self.device)
-
-        # Convert to float and normalize
-        images = images.float() / 255.0
-        images = self.normalize(images)
-
-        # Resize images if necessary
-        if images.shape[2] != 224 or images.shape[3] != 224:
-            images = nn.functional.interpolate(images, size=(224, 224), mode='bilinear', align_corners=False)
-
-        # Pass images through ResNet (in evaluation mode)
-        with torch.no_grad():  # Ensure gradients are not computed
-            features = self.resnet(images)  # Output: [batch_size * F, 2048, 1, 1]
-
-        features = features.view(features.size(0), -1)  # [batch_size * F, 2048]
-
-        # Reshape to [batch_size, F, feature_dim]
-        features = features.view(batch_size, F, -1)
-
-        # Aggregate features over frames (e.g., mean pooling)
-        features = features.mean(dim=1)  # [batch_size, 2048]
-
-        return features
-
-
+        # Get the pre-extracted ResNet features
+        resnet_features = observations["resnet_features"]
+        return resnet_features
 
 
 class CustomNetwork(nn.Module):
