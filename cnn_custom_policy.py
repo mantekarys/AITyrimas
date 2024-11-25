@@ -1,12 +1,12 @@
 import math
 from typing import Any, Callable, Dict, Tuple, Union
 
+import gymnasium as gym
 import torch
 import torch.nn as nn
-from torchvision import models, transforms
-import gymnasium as gym
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+from torchvision import models, transforms
 
 
 class CustomResNetExtractor(BaseFeaturesExtractor):
@@ -43,23 +43,36 @@ class CustomNetwork(nn.Module):
         self.latent_dim_vf = last_layer_dim_vf
 
         # Policy network
+        # self.policy_net = nn.Sequential(
+        #     nn.Linear(feature_dim, 256),
+        #     nn.LayerNorm((256)),
+        #     nn.ReLU(),
+        #     nn.Linear(256, 64),
+        #     nn.LayerNorm(64),
+        #     nn.ReLU(),
+        # )
+        # # Value network
+        # self.value_net = nn.Sequential(
+        #     nn.Linear(feature_dim, 256, bias=False),
+        #     nn.LayerNorm((256)),
+        #     nn.ReLU(),
+        #     nn.Linear(256, 64, bias=False),
+        #     nn.LayerNorm(64),
+        #     nn.ReLU(),
+        # )
+        
+        # For equivalence to custom_policy_3 
         self.policy_net = nn.Sequential(
-            nn.Linear(feature_dim, 256),
-            nn.LayerNorm((256)),
-            nn.ReLU(),
-            nn.Linear(256, 64),
+            nn.Linear(feature_dim, 64, bias=False),
             nn.LayerNorm(64),
-            nn.ReLU(),
+            nn.GELU(),
         )
-        # Value network
         self.value_net = nn.Sequential(
-            nn.Linear(feature_dim, 256, bias=False),
-            nn.LayerNorm((256)),
-            nn.ReLU(),
-            nn.Linear(256, 64, bias=False),
+            nn.Linear(feature_dim, 64, bias=False),
             nn.LayerNorm(64),
-            nn.ReLU(),
+            nn.GELU(),
         )
+
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """

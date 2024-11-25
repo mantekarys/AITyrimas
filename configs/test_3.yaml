@@ -14,9 +14,9 @@ algorithm:
   learning_rate_decay: True
   clip_range: 0.2
   clip_range_decay: True
-  clip_range_vf: 1
+  clip_range_vf: 10
   clip_range_vf_decay: True
-  ent_coef: 0.1
+  ent_coef: 0.01
   vf_coef: 1
   max_grad_norm: 1
   batch_size: 1024 # x num_envs
@@ -25,10 +25,10 @@ algorithm:
   gamma: 0.99
   gae_lambda: 0.95
 training:
-  steps: 1e5
+  steps: 2e5
 mlflow:  
   # tracking_uri: http://192.168.8.121:5000
   experiment_name: MetaDrive ViT testing
   # experiment_name: Default
   tags:
-    type: "ResNet18"
+    type: "ResNet34"
