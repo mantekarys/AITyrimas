@@ -11,12 +11,20 @@ from torchvision import models, transforms
 
 class CustomResNetExtractor(BaseFeaturesExtractor):
     def __init__(self, observation_space: gym.spaces.Dict):
-        super().__init__(observation_space, features_dim=512)
+        super().__init__(observation_space, features_dim=64)
+
+        self.embeddings_compression = nn.Sequential(
+            nn.Linear(in_features=512*4, out_features=64, bias=False),
+            nn.LayerNorm((64)),
+            nn.GELU(),
+        )
 
     def forward(self, observations: Dict[str, torch.Tensor]) -> torch.Tensor:
         # Get the pre-extracted ResNet features
         resnet_features = observations["resnet_features"]
-        return resnet_features
+        resnet_features = resnet_features.reshape((resnet_features.shape[0], -1))
+        result = self.embeddings_compression(resnet_features)
+        return result
 
 
 class CustomNetwork(nn.Module):
@@ -60,8 +68,8 @@ class CustomNetwork(nn.Module):
         #     nn.LayerNorm(64),
         #     nn.ReLU(),
         # )
-        
-        # For equivalence to custom_policy_3 
+
+        # For equivalence to custom_policy_3
         self.policy_net = nn.Sequential(
             nn.Linear(feature_dim, 64, bias=False),
             nn.LayerNorm(64),
@@ -72,7 +80,6 @@ class CustomNetwork(nn.Module):
             nn.LayerNorm(64),
             nn.GELU(),
         )
-
 
     def forward(self, features: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -86,7 +93,6 @@ class CustomNetwork(nn.Module):
 
     def forward_critic(self, features: torch.Tensor) -> torch.Tensor:
         return self.value_net(features)
-    
 
 
 class CustomResNetPolicy(ActorCriticPolicy):

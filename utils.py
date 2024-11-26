@@ -71,7 +71,7 @@ class CNN_FixedSafeMetaDriveEnv(gym.Env):
         # Add 'resnet_features' to the observation space
         # Assuming the ResNet outputs a feature vector of size 512
         observations_spaces["resnet_features"] = Box(
-            low=-np.inf, high=np.inf, shape=(512,), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=(4, 512), dtype=np.float32
         )
         self.observation_space = GymDict(spaces=observations_spaces)
 
@@ -90,8 +90,8 @@ class CNN_FixedSafeMetaDriveEnv(gym.Env):
             # Permute dimensions to (batch_size, channels, height, width)
             image_tensor = image_tensor.permute(3, 2, 0, 1)  # (F, C, H, W)
             # Reshape to merge batch and frames dimensions
-            batch_size = image_tensor.shape[0]
-            image_tensor = image_tensor.reshape(-1, *image_tensor.shape[1:])  # (F, C, H, W)
+            # batch_size = image_tensor.shape[0]
+            # image_tensor = image_tensor.reshape(-1, *image_tensor.shape[1:])  # (F, C, H, W)
 
             # Resize images if necessary
             if image_tensor.shape[2] != 224 or image_tensor.shape[3] != 224:
@@ -103,10 +103,11 @@ class CNN_FixedSafeMetaDriveEnv(gym.Env):
             image_tensor = self.normalize(image_tensor)
 
             with torch.no_grad():
-                features = self.resnet(image_tensor)  # Output shape: (F, 512, 1, 1)
-            features = features.view(features.size(0), -1)  # (F, 512)
+                features:torch.Tensor = self.resnet(image_tensor)  # Output shape: (F, 512, 1, 1)
+            # features = features.view(features.size(0), -1)  # (F, 512)
+            features = features.squeeze()
             # Aggregate features over frames (e.g., mean pooling)
-            features = features.mean(dim=0)  # (512,)
+            # features = features.mean(dim=0)  # (512,)
             return features.cpu().numpy()
         else:
             raise TypeError("Unsupported type for image.")

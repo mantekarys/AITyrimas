@@ -239,13 +239,13 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main("test_3.yaml")
+    # main("test_3.yaml")
     # main("main.yaml")
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
-    # test_policy(
-    #     "models/chill-owl-867-1.zip", 2000, config="test_1.yaml", just_embeddings=False
-    # )
+    test_policy(
+        "models/chill-owl-867-big-cnn-4.zip", 2000, config="test_1.yaml", just_embeddings=False
+    )
 
 
 # different environments
