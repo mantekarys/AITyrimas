@@ -1,7 +1,9 @@
 import yaml
 from stable_baselines3 import PPO
 import torch
-from carla_sim.carla_env import CarlaDataCollector
+import carla
+from carla_sim.carla_env import CarlaEnv
+import utils
 
 def test_policy(
     policy_file: str,
@@ -11,12 +13,20 @@ def test_policy(
 ) -> None:
     test_config = yaml.safe_load(open(f"configs/{config}", "r"))
 
-    env = CarlaDataCollector(host="127.0.0.1", port=2000)
+    print("Connecting to CARLA server")
+    client = carla.Client("4.210.242.233", 2000)
+    client.set_timeout(60.0)
+    
+    print("Creating world")
+    world = client.get_world()
+    
+    env = CarlaEnv(client, world, None)
 
     model = PPO.load(policy_file)
 
     obs = env.reset()
-    # obs["image"] = utils.resize(obs["image"], (224, 224))
+    print(obs.keys())
+    obs["image"] = utils.resize(obs["image"], (224, 224))
 
     for _ in range(frames_count):
         with torch.no_grad():
@@ -30,4 +40,4 @@ def test_policy(
     env.close()
     
 if __name__ == "__main__":
-    test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
+    test_policy("models/chill-owl-867-1.zip", 2000, just_embeddings=True)
