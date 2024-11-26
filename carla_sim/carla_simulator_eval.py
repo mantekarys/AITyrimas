@@ -2,7 +2,7 @@ import yaml
 from stable_baselines3 import PPO
 import torch
 import carla
-from carla_sim.carla_env import CarlaEnv
+from carla_env2 import CustomCarlaEnv
 import utils
 
 def test_policy(
@@ -12,15 +12,8 @@ def test_policy(
     just_embeddings=False,
 ) -> None:
     test_config = yaml.safe_load(open(f"configs/{config}", "r"))
-
-    print("Connecting to CARLA server")
-    client = carla.Client("4.210.242.233", 2000)
-    client.set_timeout(60.0)
     
-    print("Creating world")
-    world = client.get_world()
-    
-    env = CarlaEnv(client, world, None)
+    env = CustomCarlaEnv()
 
     model = PPO.load(policy_file)
 
