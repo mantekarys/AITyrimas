@@ -30,6 +30,7 @@ import src.config.configuration as configuration
 class RGB_Camera:
     def __init__(self, world, vehicle, sensor_dict):
         self.__sensor = self.attach_rgb_camera(world, vehicle, sensor_dict)
+        self.sensor_dict = sensor_dict
         self.__last_data = None
         self.__raw_data = None
         self.__sensor_ready = False
@@ -83,6 +84,11 @@ class RGB_Camera:
         if self.__raw_data is not None:
             return self.__raw_data
         else:
+            print("No data available")
+            
+            if 'image_size_x' in self.sensor_dict and 'image_size_y' in self.sensor_dict:
+                return np.zeros((self.sensor_dict['image_size_y'], self.sensor_dict['image_size_x'], 3))
+            
             return np.zeros((480, 640, 3))
     
     def is_ready(self):

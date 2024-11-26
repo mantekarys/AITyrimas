@@ -8,7 +8,7 @@ from torchvision import transforms
 
 class CustomCarlaEnv(gym.Env):
     def __init__(self):
-        self.env = CarlaEnv('carla-rl-gym-v0', time_limit=300, initialize_server=False, random_weather=False, synchronous_mode=True, show_sensor_data=True, random_traffic=False)  # <-- Alternative way to create the environment
+        self.env = CarlaEnv('carla-rl-gym-v0', time_limit=1000, initialize_server=False, random_weather=False, synchronous_mode=True, show_sensor_data=True, random_traffic=False)  # <-- Alternative way to create the environment
 
         self.device = (torch.device("cuda:0") if torch.cuda.is_available() else "cpu",)
         self.dinov2 = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14_reg")
@@ -17,9 +17,10 @@ class CustomCarlaEnv(gym.Env):
         observations = {}
         
         # TODO: whats is state?
+        # https://github.com/metadriverse/metadrive/blob/main/metadrive/obs/state_obs.py#L30
         # observations["state"] = self.env.observation_space["state"]
         
-        observations["rgb_data"] = self.env.observation_space["rgb_data"]
+        observations["image"] = self.env.observation_space["rgb_data"]
         observations["vit_embeddings"] = Box(low=0, high=1, shape=(4, 256, 384))
         
         self.observation_space = gym.spaces.dict.Dict(spaces=observations)
@@ -47,8 +48,7 @@ class CustomCarlaEnv(gym.Env):
         return patch_embedings.cpu().numpy()
     
     def resize_image(self, image: torch.Tensor) -> torch.Tensor:
-        # Resizing image torch.Size([480, 480, 3, 4])
-        print("Resizing image", image.shape)
+        # image: torch.Size([480, 480, 3, 4])
         transformation = transforms.Resize(size=(224, 224))
         chanel_second = image.permute((3, 2, 0, 1))
         resized: torch.Tensor = transformation(chanel_second)
@@ -61,15 +61,19 @@ class CustomCarlaEnv(gym.Env):
         if "rgb_data" not in obs:
             raise ValueError("Image not found in observation")
         
-        # add new image obs["rgb_data"] to frame buffer
+        update_obs = {}
+        # match pixel value types (uint8 to float32)
+        image = obs["rgb_data"].astype(np.float32)
         self.frame_buffer = np.roll(self.frame_buffer, shift=-1, axis=3)
-        self.frame_buffer[:, :, :, -1] = obs["rgb_data"]
-        obs["vit_embeddings"] = self.get_dino_features(self.frame_buffer)
+        self.frame_buffer[:, :, :, -1] = image
+
+        update_obs["vit_embeddings"] = self.get_dino_features(self.frame_buffer)
+        update_obs['image'] = self.frame_buffer
         
         # speed = obs["speed"]
         # acceleration = step_infos['acceleration']
 
-        return obs, reward, terminated, truncated, info
+        return update_obs, reward, terminated, truncated, info
     
     def reset(self):
         obs, info = self.env.reset()
@@ -77,11 +81,18 @@ class CustomCarlaEnv(gym.Env):
         if "rgb_data" not in obs:
             raise ValueError("Image not found in observation")
         
+        update_obs = {}
         # match pixel value types (uint8 to float32)
-        obs["rgb_data"] = obs["rgb_data"].astype(np.float32)
+        image = obs["rgb_data"].astype(np.float32)
         self.frame_buffer = np.roll(self.frame_buffer, shift=-1, axis=3)
-        self.frame_buffer[:, :, :, -1] = obs["rgb_data"]
+        print(image.shape)
+        self.frame_buffer[:, :, :, -1] = image
         
-        obs["vit_embeddings"] = self.get_dino_features(self.frame_buffer)
+        update_obs["vit_embeddings"] = self.get_dino_features(self.frame_buffer)
+        update_obs['image'] = self.frame_buffer
         
-        return obs
+        return update_obs
+    
+    def close(self):
+        print("Closing environment")
+        self.env.close()

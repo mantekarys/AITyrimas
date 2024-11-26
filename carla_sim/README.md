@@ -2,6 +2,13 @@
 
 [Gym wrapper](https://discord.com/channels/1283464486627315815/1283464487139278860/1311014535150436383) used.
 
+Changes to the original wrapper:
+
+- [Configuration file](CARLA_GymDrive/src/config/configuration.py) - set the CARLA server IP
+- [Observation space](CARLA_GymDrive/src/env/environment.py) - remove lidar sensor, also in [sensor config](CARLA_GymDrive/src/config/default_sensors.json)
+- [Reward function](CARLA_GymDrive/src/env/reward.py) - changed during experimentation
+- [Environment](CARLA_GymDrive/src/env/environment.py) - default scenario set to `Town01-ClearNoon-Road-0`, some additional logs, fixed returned camera data shape when there is no data on startup
+
 ## CARLA client
 
 Prerequisites:

@@ -55,7 +55,7 @@ from src.env.pre_processing import PreProcessing
 # Name: 'carla-rl-gym-v0'
 class CarlaEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": config.SIM_FPS}
-    def __init__(self, continuous=False, scenarios=[], time_limit=60, initialize_server=True, random_weather=False, random_traffic=False, synchronous_mode=True, show_sensor_data=False, has_traffic=True, apply_physics=True, autopilot=False, verbose=True):
+    def __init__(self, continuous=True, scenarios=[], time_limit=60, initialize_server=False, random_weather=False, random_traffic=False, synchronous_mode=True, show_sensor_data=False, has_traffic=True, apply_physics=True, autopilot=False, verbose=True):
         super().__init__()
         # Read the environment settings
         self.__is_continuous = continuous
@@ -117,7 +117,7 @@ class CarlaEnv(gym.Env):
     # ===================================================== GYM METHODS =====================================================                
     # This reset loads a random scenario and returns the initial state plus information about the scenario
     # Options may include the name of the scenario to load    
-    def reset(self, seed=None, options={'scenario_name': None}):
+    def reset(self, seed=None, options={'scenario_name': 'Town01-ClearNoon-Road-0'}):
         # 1. Choose a scenario
         if options['scenario_name'] is not None:
             self.__active_scenario_name = options['scenario_name']
@@ -196,6 +196,7 @@ class CarlaEnv(gym.Env):
         # 3. Calculate the reward
         reward = self.__reward_func.calculate_reward(self.__vehicle, self.__reward_current_pos, self.__reward_target_pos, self.__reward_next_waypoint_pos, self.__reward_speed)
         terminated = self.__reward_func.get_terminated()
+        print("Terminated: ", terminated)
         self.__waypoints = self.__reward_func.get_waypoints()
         
         # 5. Check if the episode is truncated
@@ -243,7 +244,6 @@ class CarlaEnv(gym.Env):
     def __update_observation(self):        
         observation_space = self.__vehicle.get_observation_data()
         rgb_image = observation_space['rgb_data']
-        lidar_data = observation_space['lidar_data']
         vehicle_loc = self.__vehicle.get_location()
         current_position = np.array([vehicle_loc.x, vehicle_loc.y, vehicle_loc.z])
         target_position = np.array([self.__active_scenario_dict['target_position']['x'], self.__active_scenario_dict['target_position']['y'], self.__active_scenario_dict['target_position']['z']])
@@ -256,7 +256,6 @@ class CarlaEnv(gym.Env):
 
         observation = {
             'rgb_data': np.uint8(rgb_image),
-            'lidar_data': np.float32(lidar_data),
             'position': np.float32(current_position),
             'target_position': np.float32(target_position),
             'next_waypoint_position': np.float32(next_waypoint_position),
@@ -264,7 +263,7 @@ class CarlaEnv(gym.Env):
             'situation': situation
         }
         
-        self.__observation = self.pre_processing.preprocess_data(observation)
+        self.__observation = observation
         
         # Aux variables for the reward function so the information that is given to the ego vehicle and to the reward function is the same no matter what happens
         self.__reward_target_pos = target_position
@@ -288,16 +287,20 @@ class CarlaEnv(gym.Env):
         # World
         # This is a fix to a weird bug that happens when the first town is the same as the default map (comment and run a couple of times to see the bug)
         if self.__first_episode and self.__active_scenario_dict['map_name'] == self.__world.get_active_map_name():
+            print("Reloading map...")
             self.__world.reload_map()
         self.__first_episode = False
         
+        print("Loading world...")
         self.__load_world(scenario_dict['map_name'])
+        print("Updating traffic map...")
         self.__map = self.__world.update_traffic_map()
         time.sleep(2.0)
         if self.__verbose:
             print("World loaded!")
         
         # Settings
+        print("Setting world settings...")
         self.__world.set_settings()
         
         # Weather
@@ -438,6 +441,7 @@ class CarlaEnv(gym.Env):
     def __timer_truncated(self):
         if time.time() - self.start_time > self.__time_limit:
             self.__time_limit_reached = True
+            print("Time limit reached!")
             return True
         else:
             return False

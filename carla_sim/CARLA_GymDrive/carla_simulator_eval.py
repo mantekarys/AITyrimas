@@ -31,20 +31,27 @@ def test_policy(
 
     model = PPO.load(policy_file)
 
-    obs = env.reset()
-    print(obs.keys())
-    obs["rgb_data"] = resize(obs["rgb_data"], (224, 224))
+    try:
+        obs = env.reset()
+        # obs["image"] = resize(obs["image"], (224, 224))
 
-    for _ in range(frames_count):
-        with torch.no_grad():
-            if just_embeddings:
-                obs = {"vit_embeddings": obs["vit_embeddings"]}
-            action, _ = model.predict(obs, deterministic=True)
-        obs, reward, done, info = env.step(action)
+        for _ in range(frames_count):
+            with torch.no_grad():
+                if just_embeddings:
+                    obs = {"vit_embeddings": obs["vit_embeddings"]}
+                action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            print("Reward: ", reward)
+            print("-----")
 
-        obs["rgb_data"] = resize(obs["rgb_data"], (224, 224))
+            if terminated or truncated:
+                obs, info = env.reset()
+            # obs["image"] = resize(obs["image"], (224, 224))
 
-    env.close()
+        env.close()
+    except Exception as e:
+        env.close()
+        raise e
     
 if __name__ == "__main__":
     test_policy("../../models/chill-owl-867-1.zip", 2000, just_embeddings=True)

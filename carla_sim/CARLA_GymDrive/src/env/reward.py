@@ -36,7 +36,14 @@ class Reward:
         if self.terminated:
             self.countint += 1
             print("The episode already ended!!!, count: ", self.countint)
-            
+
+        print("Collision reward: ", self.__collision_reward(vehicle))
+        print("Steering jerk reward: ", self.__steering_jerk(vehicle))
+        print("Throttle/Brake jerk reward: ", self.__throttle_brake_jerk(vehicle))
+        print("Speed reward: ", self.__speed_reward(speed))
+        print("Target destination reward: ", self.__target_destination(target_distance))
+        print("Waypoint reached reward: ", self.__waypoint_reached(next_waypoint_distance))
+        
         reward = self.__collision_reward(vehicle) + \
             self.__steering_jerk(vehicle) + \
             self.__throttle_brake_jerk(vehicle) + \
@@ -47,7 +54,7 @@ class Reward:
         self.total_ep_reward += reward
         
         return reward
-        
+
     # ============================================= Reward Functions ==========================================================
     def __collision_reward(self, vehicle):
         '''
@@ -61,7 +68,7 @@ class Reward:
         lambda = 20
         '''
         lbd = 20
-        if vehicle.collision_occurred() or vehicle.lane_invasion_occurred():
+        if vehicle.collision_occurred():
             self.terminated = True
             return -lbd
         else:
