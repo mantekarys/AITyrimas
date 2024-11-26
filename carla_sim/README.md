@@ -2,6 +2,25 @@
 
 [Gym wrapper](https://discord.com/channels/1283464486627315815/1283464487139278860/1311014535150436383) used.
 
+## CARLA client
+
+Prerequisites:
+
+- Need to install CARLA Python module
+
+```bash
+pip install carla==0.9.15
+```
+
+Python verion higher then 3.7 can be used. I used Python 3.10.15, environment requirements file is also included.
+
+Running the client:
+
+```bash
+cd carla_sim/CARLA_GymDrive
+python carla_simulator_eval.py
+```
+
 ## CARLA server
 
 CARLA server ran on Azure `Standard NC4as T4 v3 (4 vcpus, 28 GiB memory)`
