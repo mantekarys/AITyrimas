@@ -16,7 +16,7 @@ algorithm:
   clip_range_decay: True
   clip_range_vf: 10
   clip_range_vf_decay: True
-  ent_coef: 0.01
+  ent_coef: 0.1
   vf_coef: 1
   max_grad_norm: 1
   batch_size: 1024 # x num_envs

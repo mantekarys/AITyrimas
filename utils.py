@@ -4,19 +4,17 @@ from typing import Any, Callable, Dict, Tuple, Union
 import cupy as cp
 import gymnasium as gym
 import gymnasium.spaces.dict
-from gymnasium.spaces import Box, Dict as GymDict
 import mlflow
 import numpy as np
 import seaborn as sns
-
 import torch
 import torch.nn as nn
-from torchvision import models, transforms
 from gymnasium.spaces import Box
+from gymnasium.spaces import Dict as GymDict
 from matplotlib import pyplot as plt
 from metadrive import SafeMetaDriveEnv
 from stable_baselines3.common.logger import KVWriter
-from torchvision import transforms
+from torchvision import models, transforms
 
 
 def resize(image: np.ndarray, target_size: Tuple[int, int] = (224)):
@@ -177,109 +175,109 @@ class CNN_FixedSafeMetaDriveEnv(gym.Env):
     
 
 
-# class FixedSafeMetaDriveEnv(gym.Env):
-#     def __init__(
-#         self, return_image: bool = True, env_config: dict = None, *args, **kwargs
-#     ):
-#         self.env = SafeMetaDriveEnv(env_config, *args, **kwargs)
-#         self.return_image = return_image
+class FixedSafeMetaDriveEnv(gym.Env):
+    def __init__(
+        self, return_image: bool = True, env_config: dict = None, *args, **kwargs
+    ):
+        self.env = SafeMetaDriveEnv(env_config, *args, **kwargs)
+        self.return_image = return_image
 
-#         self.device = (torch.device("cuda:0") if torch.cuda.is_available() else "cpu",)
-#         self.dinov2 = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14_reg")
-#         self.dinov2 = self.dinov2.to(self.device[0])
+        self.device = (torch.device("cuda:0") if torch.cuda.is_available() else "cpu",)
+        self.dinov2 = torch.hub.load("facebookresearch/dinov2", "dinov2_vits14_reg")
+        self.dinov2 = self.dinov2.to(self.device[0])
 
-#         observations_shapes = {}
-#         if self.return_image:
-#             observations_shapes["state"] = self.env.observation_space["state"]
-#             observations_shapes["image"] = self.env.observation_space["image"]
-#         observations_shapes["vit_embeddings"] = Box(low=0, high=1, shape=(4, 256, 384))
-#         self.observation_space = gymnasium.spaces.dict.Dict(spaces=observations_shapes)
+        observations_shapes = {}
+        if self.return_image:
+            observations_shapes["state"] = self.env.observation_space["state"]
+            observations_shapes["image"] = self.env.observation_space["image"]
+        observations_shapes["vit_embeddings"] = Box(low=0, high=1, shape=(4, 256, 384))
+        self.observation_space = gymnasium.spaces.dict.Dict(spaces=observations_shapes)
 
-#         self.action_space = self.env.action_space
-#         self.render_mode = self.env.render_mode
-#         self.reward_range = getattr(self.env, "reward_range", None)
-#         self.spec = getattr(self.env, "spec", None)
-
-
-#     def get_dino_features(self, image):
-#         if isinstance(image, np.ndarray):
-#             image_on_gpu = torch.tensor(image, device=self.device[0])
-#             if image_on_gpu.shape[0] != 224 and image_on_gpu.shape[1] != 224:
-#                 image_on_gpu = self.resize_image(image_on_gpu)
-#         else:
-#             raise TypeError("unsuported type")
-#         chanels_third = image_on_gpu.permute((3, 2, 0, 1))
-#         # shape = chanels_third.shape
-#         # stacked_frames = image_on_gpu.reshape(shape=tuple([shape[0] * shape[1], *shape[2:]]))
-#         with torch.no_grad():
-#             result = self.dinov2.forward_features(chanels_third)
-#         patch_embedings: torch.Tensor = result["x_norm_patchtokens"]
-#         return patch_embedings.cpu().numpy()
+        self.action_space = self.env.action_space
+        self.render_mode = self.env.render_mode
+        self.reward_range = getattr(self.env, "reward_range", None)
+        self.spec = getattr(self.env, "spec", None)
 
 
-#     def resize_image(self, image: torch.Tensor) -> torch.Tensor:
-#         transformation = transforms.Resize(size=(224, 224))
-#         chanel_second = image.permute((3, 2, 0, 1))
-#         resized: torch.Tensor = transformation(chanel_second)
-#         original_order = resized.permute((2, 3, 1, 0))
-#         return original_order
+    def get_dino_features(self, image):
+        if isinstance(image, np.ndarray):
+            image_on_gpu = torch.tensor(image, device=self.device[0])
+            if image_on_gpu.shape[0] != 224 and image_on_gpu.shape[1] != 224:
+                image_on_gpu = self.resize_image(image_on_gpu)
+        else:
+            raise TypeError("unsuported type")
+        chanels_third = image_on_gpu.permute((3, 2, 0, 1))
+        # shape = chanels_third.shape
+        # stacked_frames = image_on_gpu.reshape(shape=tuple([shape[0] * shape[1], *shape[2:]]))
+        with torch.no_grad():
+            result = self.dinov2.forward_features(chanels_third)
+        patch_embedings: torch.Tensor = result["x_norm_patchtokens"]
+        return patch_embedings.cpu().numpy()
 
-#     def step_info_adapter(self, step_info: dict) -> dict:
-#         step_info["episode"] = {
-#             "l": step_info.get("episode_length", 0),
-#             "r": step_info.get("episode_reward", 0),
-#         }
-#         step_info["is_success"] = step_info.get("arrive_dest", False)
-#         return step_info
 
-    # def step(self, *args, **kwargs):
-    #     obs, rewards, terminateds, truncateds, step_infos = self.env.step(
-    #         *args, **kwargs
-    #     )
-    #     if self.return_image:
-    #         obs["vit_embeddings"] = self.get_dino_features(obs["image"])
-    #     else:
-    #         obs = {"vit_embeddings": self.get_dino_features(obs["image"])}
-    #     step_infos = self.step_info_adapter(step_infos)
-    #     velocity = step_infos["velocity"]
-    #     acceleration = step_infos['acceleration']
-    #     if velocity < 1 and acceleration <= 0:
-    #         rewards -=(1-velocity)*0.1
-    #     elif velocity > 15 and acceleration > 0:
-    #         rewards -= (velocity-15)/5
-    #     # print(velocity)
-    #     # print(f"Reward:  {rewards}")
-    #     # print(f"Episode: {step_infos['episode_reward']}")
-    #     return obs, rewards, terminateds, truncateds, step_infos
+    def resize_image(self, image: torch.Tensor) -> torch.Tensor:
+        transformation = transforms.Resize(size=(224, 224))
+        chanel_second = image.permute((3, 2, 0, 1))
+        resized: torch.Tensor = transformation(chanel_second)
+        original_order = resized.permute((2, 3, 1, 0))
+        return original_order
 
-#     def reset(self, *args, **kwargs):
-#         obs, step_infos = self.env.reset()
-#         if self.return_image:
-#             obs["vit_embeddings"] = self.get_dino_features(obs["image"])
-#         else:
-#             obs = {"vit_embeddings": self.get_dino_features(obs["image"])}
-#         step_infos = self.step_info_adapter(step_infos)
-#         return obs, step_infos
+    def step_info_adapter(self, step_info: dict) -> dict:
+        step_info["episode"] = {
+            "l": step_info.get("episode_length", 0),
+            "r": step_info.get("episode_reward", 0),
+        }
+        step_info["is_success"] = step_info.get("arrive_dest", False)
+        return step_info
 
-#     def render(self) -> Any:
-#         """Renders the environment.
+    def step(self, *args, **kwargs):
+        obs, rewards, terminateds, truncateds, step_infos = self.env.step(
+            *args, **kwargs
+        )
+        if self.return_image:
+            obs["vit_embeddings"] = self.get_dino_features(obs["image"])
+        else:
+            obs = {"vit_embeddings": self.get_dino_features(obs["image"])}
+        step_infos = self.step_info_adapter(step_infos)
+        velocity = step_infos["velocity"]
+        acceleration = step_infos['acceleration']
+        if velocity < 1 and acceleration <= 0:
+            rewards -=(1-velocity)*0.1
+        elif velocity > 15 and acceleration > 0:
+            rewards -= (velocity-15)/5
+        # print(velocity)
+        # print(f"Reward:  {rewards}")
+        # print(f"Episode: {step_infos['episode_reward']}")
+        return obs, rewards, terminateds, truncateds, step_infos
 
-#         Returns:
-#             The rendering of the environment, depending on the render mode
-#         """
-#         return self.env.render(mode=self.render_mode)
+    def reset(self, *args, **kwargs):
+        obs, step_infos = self.env.reset()
+        if self.return_image:
+            obs["vit_embeddings"] = self.get_dino_features(obs["image"])
+        else:
+            obs = {"vit_embeddings": self.get_dino_features(obs["image"])}
+        step_infos = self.step_info_adapter(step_infos)
+        return obs, step_infos
 
-#     def close(self):
-#         """Closes the environment."""
-#         self.env.close()
+    def render(self) -> Any:
+        """Renders the environment.
 
-#     def __str__(self):
-#         """Returns the wrapper name and the unwrapped environment string."""
-#         return f"<{type(self).__name__}{self.env}>"
+        Returns:
+            The rendering of the environment, depending on the render mode
+        """
+        return self.env.render(mode=self.render_mode)
 
-#     def __repr__(self):
-#         """Returns the string representation of the wrapper."""
-#         return str(self)
+    def close(self):
+        """Closes the environment."""
+        self.env.close()
+
+    def __str__(self):
+        """Returns the wrapper name and the unwrapped environment string."""
+        return f"<{type(self).__name__}{self.env}>"
+
+    def __repr__(self):
+        """Returns the string representation of the wrapper."""
+        return str(self)
     
 
 

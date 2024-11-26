@@ -31,6 +31,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 
 import utils
 from cnn_custom_policy import CustomResNetPolicy
+
 # from custom_policy_1 import CustomCNNPolicy
 # from custom_policy_2 import CustomViTPolicy
 # from custom_policy_3 import CustomViTPolicy2
@@ -68,7 +69,7 @@ class DataCollector:
                 "show_fps": False,
                 "crash_vehicle_done": False,
                 "crash_object_done": False,
-                # "out_of_road_done": True,
+                "out_of_road_done": True,
                 "on_continuous_line_done": False,
             }
         )
@@ -243,7 +244,7 @@ if __name__ == "__main__":
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
     # test_policy(
-    #     "models/chill-owl-867-cnn1.zip", 2000, config="test_1.yaml", just_embeddings=False
+    #     "models/chill-owl-867-1.zip", 2000, config="test_1.yaml", just_embeddings=False
     # )
 
 
