@@ -6,6 +6,10 @@ import time
 import math
 import torch
 
+# Initial attempt to create env wrapper
+# Sources:
+# https://github.com/alberto-mate/CARLA-SB3-RL-Training-Environment
+# https://github.com/gustavomoers/E2E-CARLA-ReinforcementLearning-PPO/tree/main
 class CarlaEnv(gym.Env):
     def __init__(self, 
                  client, 
