@@ -1,6 +1,6 @@
 environment:
   window_size: [480, 480]
-  traffic_density: 0.15
+  traffic_density: 0.05
   stack_size: 4
   accident_prob: 0.8
   map: "CCCCCCCCCCCCCCC"
