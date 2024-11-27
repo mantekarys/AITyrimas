@@ -4,7 +4,7 @@
     "weather_condition": "Clear Noon",
     "initial_position": {"x": 312.3, "y": 195.3, "z": 0.3},
     "initial_rotation": {"pitch": 0.0, "yaw": 180.0, "roll": 0.0},
-		"target_position": {"x": 128.2, "y": 195.3, "z": 0.3},
+		"target_position": {"x": 210.3, "y": 195.3, "z": 0.3},
     "target_gnss": {"lat": -0.001754, "lon": 0.001143, "alt": 0},
     "traffic_density": "High",
     "situation": "Road"

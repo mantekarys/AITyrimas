@@ -194,7 +194,7 @@ class CarlaEnv(gym.Env):
         # 2. Update the observation
         self.__update_observation()
         # 3. Calculate the reward
-        reward = self.__reward_func.calculate_reward(self.__vehicle, self.__reward_current_pos, self.__reward_target_pos, self.__reward_next_waypoint_pos, self.__reward_speed)
+        reward = self.__reward_func.calculate_reward2(self.__vehicle, self.start_time, self.__reward_current_pos, self.__reward_last_pos, self.__reward_target_pos, self.__reward_next_waypoint_pos, self.__reward_speed)
         terminated = self.__reward_func.get_terminated()
         print("Terminated: ", terminated)
         self.__waypoints = self.__reward_func.get_waypoints()
@@ -267,6 +267,10 @@ class CarlaEnv(gym.Env):
         
         # Aux variables for the reward function so the information that is given to the ego vehicle and to the reward function is the same no matter what happens
         self.__reward_target_pos = target_position
+        if hasattr(self, '__reward_current_pos'):
+            self.__reward_last_pos = self.__reward_current_pos
+        else:
+            self.__reward_last_pos = current_position
         self.__reward_current_pos = current_position
         self.__reward_next_waypoint_pos = next_waypoint_position
         self.__reward_speed = speed[0]

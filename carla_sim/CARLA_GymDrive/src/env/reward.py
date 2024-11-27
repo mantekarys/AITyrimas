@@ -54,6 +54,32 @@ class Reward:
         self.total_ep_reward += reward
         
         return reward
+    
+    def calculate_reward2(self, vehicle: Vehicle, start_time, current_pos, last_pos, target_pos, next_waypoint_pos, speed) -> float:   
+        target_distance = self.distance(current_pos, target_pos)
+        next_waypoint_distance = self.distance(current_pos, next_waypoint_pos)
+        
+        if self.terminated:
+            self.countint += 1
+            print("The episode already ended!!!, count: ", self.countint)
+        
+        speed_reward = 0.1 * (speed / 50) * 1.0
+        driving_reward = 1.0 * (self.distance(last_pos, current_pos)) * 1.0
+        
+        print("Speed reward: ", speed_reward)
+        print("Driving reward: ", driving_reward, self.distance(last_pos, current_pos))
+        print("Target destination: ", target_distance)
+        
+        reward = 0
+        reward = speed_reward + driving_reward + self.__target_destination(target_distance)
+        
+        if vehicle.collision_occurred():
+            self.terminated = True
+            reward -= 10.0
+
+        self.total_ep_reward += reward
+        
+        return reward
 
     # ============================================= Reward Functions ==========================================================
     def __collision_reward(self, vehicle):
