@@ -1,0 +1,15 @@
+artifact_uri: file:///media/Programs/Code/AITyrimas/mlruns/0/0ba58f7d17024552aef00ed8cbea0b54/artifacts
+end_time: 1733213959597
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 0ba58f7d17024552aef00ed8cbea0b54
+run_name: classy-skink-104
+run_uuid: 0ba58f7d17024552aef00ed8cbea0b54
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1733165014642
+status: 3
+tags: []
+user_id: jusrad

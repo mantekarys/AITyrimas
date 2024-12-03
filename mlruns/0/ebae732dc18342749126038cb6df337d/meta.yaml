@@ -1,0 +1,15 @@
+artifact_uri: file:///media/Programs/Code/AITyrimas/mlruns/0/ebae732dc18342749126038cb6df337d/artifacts
+end_time: 1733214813584
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: ebae732dc18342749126038cb6df337d
+run_name: traveling-calf-604
+run_uuid: ebae732dc18342749126038cb6df337d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1733214011173
+status: 4
+tags: []
+user_id: jusrad
