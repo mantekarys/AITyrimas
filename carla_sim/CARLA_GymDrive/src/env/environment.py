@@ -255,7 +255,7 @@ class CarlaEnv(gym.Env):
         situation = self.__situations_map[self.__active_scenario_dict['situation']]
 
         observation = {
-            'rgb_data': np.uint8(rgb_image),
+            'rgb_data': np.float32(rgb_image),
             'position': np.float32(current_position),
             'target_position': np.float32(target_position),
             'next_waypoint_position': np.float32(next_waypoint_position),

@@ -1,6 +1,6 @@
 # CARLA simulator experiments
 
-[Gym wrapper](https://discord.com/channels/1283464486627315815/1283464487139278860/1311014535150436383) used.
+[Gym wrapper](https://github.com/angelomorgado/CARLA-GymDrive) used.
 
 Changes to the original wrapper:
 

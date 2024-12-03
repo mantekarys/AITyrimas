@@ -53,15 +53,21 @@ class RGB_Camera:
     def callback(self, data):
         global configuration
 
-        # Get the image from the data
-        image = Image.frombytes('RGBA', (data.width, data.height), data.raw_data, 'raw', 'RGBA')
+        # # Get the image from the data
+        # image = Image.frombytes('RGBA', (data.width, data.height), data.raw_data, 'raw', 'RGBA')
 
-        # Convert the image to a NumPy array
-        image_array = np.array(image)
+        # # Convert the image to a NumPy array
+        # image_array = np.array(image)
 
-        # Take out the alpha channel
+        # # Take out the alpha channel
+        # image_array = image_array[:, :, :3]
+        
+        # https://github.com/carla-simulator/data-collector/blob/master/carla/image_converter.py
+        array = np.frombuffer(data.raw_data, dtype=np.dtype("uint8"))
+        image_array = np.reshape(array, (data.height, data.width, 4))
         image_array = image_array[:, :, :3]
-
+        image_array = image_array[:, :, ::-1]
+    
         self.__raw_data = image_array
         self.__sensor_ready = True
 

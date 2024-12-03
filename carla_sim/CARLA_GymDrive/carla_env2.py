@@ -1,10 +1,11 @@
+import carla.libcarla
 import gymnasium as gym
 from gymnasium.spaces import Box
 from src.env.environment import CarlaEnv
 import torch
 import numpy as np
 from torchvision import transforms
-
+import cv2
 
 class CustomCarlaEnv(gym.Env):
     def __init__(self):
@@ -55,6 +56,10 @@ class CustomCarlaEnv(gym.Env):
         original_order = resized.permute((2, 3, 1, 0))
         return original_order
     
+    def frame_augmentation(self, image):
+        blurred_frame = cv2.GaussianBlur(image, (5, 5), 0)  
+        return blurred_frame
+    
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         
@@ -63,7 +68,9 @@ class CustomCarlaEnv(gym.Env):
         
         update_obs = {}
         # match pixel value types (uint8 to float32)
-        image = obs["rgb_data"].astype(np.float32)
+        # image = obs["rgb_data"].astype(np.float32)
+        image = self.frame_augmentation(obs["rgb_data"])
+        
         self.frame_buffer = np.roll(self.frame_buffer, shift=-1, axis=3)
         self.frame_buffer[:, :, :, -1] = image
 
@@ -82,10 +89,12 @@ class CustomCarlaEnv(gym.Env):
             raise ValueError("Image not found in observation")
         
         update_obs = {}
+        
         # match pixel value types (uint8 to float32)
-        image = obs["rgb_data"].astype(np.float32)
+        # image = obs["rgb_data"].astype(np.float32)
+        image = self.frame_augmentation(obs["rgb_data"])
+
         self.frame_buffer = np.roll(self.frame_buffer, shift=-1, axis=3)
-        print(image.shape)
         self.frame_buffer[:, :, :, -1] = image
         
         update_obs["vit_embeddings"] = self.get_dino_features(self.frame_buffer)

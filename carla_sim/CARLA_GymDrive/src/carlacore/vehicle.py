@@ -184,11 +184,13 @@ class Vehicle:
         # Create Wheels Physics Control (This simulation assumes that wheels on the same axle have the same physics control)
         front_wheels  = carla.WheelPhysicsControl(tire_friction=physics_data["front_wheels"]["tire_friction"], 
                                                     damping_rate=physics_data["front_wheels"]["damping_rate"], 
-                                                    long_stiff_value=physics_data["front_wheels"]["long_stiff_value"])
+                                                    long_stiff_value=physics_data["front_wheels"]["long_stiff_value"],
+                                                    max_steer_angle=50)
 
         rear_wheels   = carla.WheelPhysicsControl(tire_friction=physics_data["rear_wheels"]["tire_friction"], 
                                                     damping_rate=physics_data["rear_wheels"]["damping_rate"], 
-                                                    long_stiff_value=physics_data["rear_wheels"]["long_stiff_value"])
+                                                    long_stiff_value=physics_data["rear_wheels"]["long_stiff_value"],
+                                                    max_steer_angle=50)
 
         wheels = [front_wheels, front_wheels, rear_wheels, rear_wheels]
 

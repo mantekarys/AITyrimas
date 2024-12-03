@@ -1,7 +1,7 @@
 {
   "Town01-ClearNoon-Road-0": {
     "map_name": "Town01",
-    "weather_condition": "Clear Noon",
+    "weather_condition": "Clear Sunset",
     "initial_position": {"x": 312.3, "y": 195.3, "z": 0.3},
     "initial_rotation": {"pitch": 0.0, "yaw": 180.0, "roll": 0.0},
 		"target_position": {"x": 210.3, "y": 195.3, "z": 0.3},
