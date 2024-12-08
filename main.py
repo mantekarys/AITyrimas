@@ -151,9 +151,36 @@ def test_policy(
         obs["image"] = utils.resize(obs["image"], (224, 224))
     env.close()
 
-def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
+def metadrive_policy_test_collecting_metrics(
+    policy_file: str,
+    frames_count: int = 1000,
+    config_file: str = "main.yaml",
+    just_embeddings=False,
+):
+    config = yaml.safe_load(open(f"configs/{config_file}", "r"))
+    collector = DataCollector(config)
+    
+    model = PPO.load(policy_file)
+    env = collector.create_env()
+
+    metrics = evaluate_model(env, model, num_episodes=10, just_embeddings=just_embeddings)
+    print(metrics)
+    df = pd.DataFrame(metrics)
+    date = time.strftime("%Y-%m-%d-%H-%M-%S")
+    df.to_csv(f"metrics/metadrive_policy_test_metrics_{date}.csv", index=False)
+    utils.display_results(df)
+
+def evaluate_model(
+    env,
+    model,
+    num_episodes=10,
+    max_steps_per_episode=1000,
+    just_embeddings=False
+):
     # Adjust the number of episodes based on the number of parallel environments
     effective_episodes = max(1, num_episodes // env.num_envs)
+
+    print(f"Evaluating model for {effective_episodes} episodes...")
 
     # Metrics
     total_success_rate = 0
@@ -164,6 +191,8 @@ def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
     total_rewards = []
 
     for episode in range(effective_episodes):
+        print(f"Episode {episode + 1}/{effective_episodes}")
+
         obs = env.reset()
         done = [False] * env.num_envs
         total_reward = np.zeros(env.num_envs)
@@ -171,11 +200,15 @@ def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
         collisions = np.zeros(env.num_envs)
         step_count = np.zeros(env.num_envs)
         episode_start_time = time.time()
-
+       
         while not all(done) and np.any(step_count < max_steps_per_episode):
+            with torch.no_grad():
+                if just_embeddings:
+                    obs = {"vit_embeddings": obs["vit_embeddings"]}
             # Predict the next action
             action, _ = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action)
+
             for i in range(env.num_envs):
                 if not done[i] and step_count[i] < max_steps_per_episode:
                     total_reward[i] += reward[i]
@@ -183,6 +216,12 @@ def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
                     collisions[i] += info[i].get('collision', 0)
                     step_count[i] += 1
 
+        print(f"Episode {episode + 1} completed in {time.time() - episode_start_time} seconds")
+        print(f"Total reward: {total_reward}")
+        print(f"Distance traveled: {distance_traveled}")
+        print(f"Collisions: {collisions}")
+        print(f"Steps: {step_count}")
+        
         episode_end_time = time.time()
         total_distance_traveled.extend(distance_traveled)
         total_collisions += np.sum(collisions)
@@ -194,6 +233,8 @@ def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
         for i in range(env.num_envs):
             if info[i].get("arrive_dest", False):
                 total_success_rate += 1
+                
+        print(f"Total success rate: {total_success_rate}")
 
     # Compute metrics
     total_env_episodes = effective_episodes * env.num_envs
@@ -346,7 +387,13 @@ if __name__ == "__main__":
     # main("test_1.yaml")
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
-    test_policy("models/upset-asp-587.zip", 2000, config="test_1.yaml", just_embeddings=True)
+    # test_policy("models/upset-asp-587.zip", 2000, config="test_1.yaml", just_embeddings=True)
+    metadrive_policy_test_collecting_metrics(
+        "models/upset-asp-587.zip", 
+        2000, 
+        config_file="test_1.yaml", 
+        just_embeddings=True
+    )
 
 
 # different environments
