@@ -1,0 +1,30 @@
+{
+  "SettingsVersion": 1.2,
+  "SimMode": "Car",
+  "Vehicles": {
+    "Car": {
+      "VehicleType": "PhysXCar",
+      "AutoCreate": true,
+      "Cameras": {
+        "FrontCamera": {
+          "CaptureSettings": [
+            {
+              "ImageType": 0,
+              "Width": 224,
+              "Height": 224,
+              "TargetGamma": 1.0
+            }
+          ],
+          "X": -100.0,
+          "Y": 0.0,
+          "Z": 100000000.0
+        }
+      },
+      "Parameters": {
+        "Mass": 1200.0,
+        "DragCoefficient": 0.3,
+        "TireFriction": 1.0
+      }
+    }
+  }
+}
