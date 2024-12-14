@@ -1,6 +1,6 @@
 environment:
   window_size: [224, 224]
-  traffic_density: 0.15
+  traffic_density: 0.05
   stack_size: 4
   accident_prob: 0.8
   map: "CCCCCCCCCCCCCCC"
@@ -14,21 +14,21 @@ algorithm:
   learning_rate_decay: True
   clip_range: 0.2
   clip_range_decay: True
-  clip_range_vf: 1
+  clip_range_vf: 10
   clip_range_vf_decay: True
-  ent_coef: 0.1
+  ent_coef: 0.01
   vf_coef: 1
   max_grad_norm: 1
   batch_size: 1024 # x num_envs
-  minibatch_size: 512
-  n_epochs: 5
+  minibatch_size: 256
+  n_epochs: 3
   gamma: 0.99
   gae_lambda: 0.95
 training:
-  steps: 2e5
+  steps: 1e6
 mlflow:  
-  tracking_uri: http://192.168.8.121:5000
-  # experiment_name: MetaDrive ViT testing
-  experiment_name: Default
+  # tracking_uri: http://192.168.8.121:5000
+  experiment_name: MetaDrive ViT testing
+  # experiment_name: Default
   tags:
     type: "DinoV2"
