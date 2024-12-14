@@ -26,10 +26,15 @@ class DataCollector:
     def __init__(self, config: dict) -> None:
         self.seed = config["seed"]
         self.return_image = config["simulation"]["show_view"]
-        config["algorithm"]["learning_rate"] = float(
-            config["algorithm"]["learning_rate"]
-        )
-        config["training"]["steps"] = int(float(config["training"]["steps"]))
+        
+        if "algorithm" in config:
+            config["algorithm"]["learning_rate"] = float(
+                config["algorithm"]["learning_rate"]
+            )
+            
+        if "training" in config["algorithm"]:
+            config["training"]["steps"] = int(float(config["training"]["steps"]))
+
         self.config = config
         self.maps = self.config.get("environment", {}).get("map", [])
 
