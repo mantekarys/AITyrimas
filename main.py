@@ -3,6 +3,7 @@ import random
 import sys
 import time
 from functools import partial
+
 import cupy as cp
 import cv2
 import gymnasium as gym
@@ -16,18 +17,33 @@ from mlflow.entities.run import Run
 from stable_baselines3 import PPO
 from stable_baselines3.common.logger import HumanOutputFormat, Logger
 from stable_baselines3.common.vec_env import SubprocVecEnv
+
 import utils
 from cnn_custom_policy import CustomResNetPolicy
 
+from evaluation import evaluate_model, evaluate_trained_model, model_configuration
 
 class DataCollector:
     def __init__(self, config: dict) -> None:
         self.seed = config["seed"]
         self.return_image = config["simulation"]["show_view"]
-        config["algorithm"]["learning_rate"] = float(
-            config["algorithm"]["learning_rate"]
-        )
-        config["training"]["steps"] = int(float(config["training"]["steps"]))
+        
+        if "algorithm" in config:
+            config["algorithm"]["learning_rate"] = float(
+                config["algorithm"]["learning_rate"]
+            )
+            
+        if "training" in config:
+            config["training"]["steps"] = int(float(config["training"]["steps"]))
+
+        if "evaluation" in config:
+            self.evaluated = True
+            self.agent_backbone = config["evaluation"].get("backbone", "vit")
+            print(f"Agent backbone: {self.agent_backbone}")
+            
+            if self.agent_backbone not in ["resnet", "vit"]:
+                raise ValueError("Evaluation error: Invalid backbone for the agent set in config file")
+
         self.config = config
         self.maps = self.config.get("environment", {}).get("map", [])
 
@@ -56,9 +72,23 @@ class DataCollector:
         )
         sim_config["map"] = random.choice(self.maps)
 
-        env = utils.CNN_FixedSafeMetaDriveEnv(
-            return_image=self.return_image, env_config=sim_config
-        )
+        # if evalutated pretrained model, use environment set in config
+        if self.evaluated:
+            if self.agent_backbone == "vit":
+                env = utils.FixedSafeMetaDriveEnv(
+                    return_image=self.return_image, env_config=sim_config
+                )
+            elif self.agent_backbone == "resnet":
+                env = utils.CNN_FixedSafeMetaDriveEnv(
+                    return_image=self.return_image, env_config=sim_config
+                )
+            else:
+                raise ValueError("Evaluation error: Invalid backbone for the agent set in config file")
+        else:
+            # Change environment here for training
+            env = utils.CNN_FixedSafeMetaDriveEnv(
+                return_image=self.return_image, env_config=sim_config
+            )
 
         # Modify the reset function to select a new map each time
         original_reset = env.reset
@@ -149,71 +179,67 @@ def test_policy(
         obs["image"] = utils.resize(obs["image"], (224, 224))
     env.close()
 
-def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
-    # Adjust the number of episodes based on the number of parallel environments
-    effective_episodes = max(1, num_episodes // env.num_envs)
+def metadrive_policy_test_collecting_metrics(config_file: str = "evaluate.yaml"):
+    config = yaml.safe_load(open(f"configs/{config_file}", "r"))
 
-    # Metrics
-    total_success_rate = 0
-    total_distance_traveled = []
-    total_collisions = 0
-    total_steps = []
-    total_episode_times = []
-    total_rewards = []
+    if "evaluation" not in config:
+        raise ValueError(f"Config file {config_file} does not contain evaluation settings")
+    
+    if "policy_file" not in config["evaluation"]:
+        raise ValueError(f"Config file {config_file} does not contain a policy file path")
+    
+    policy_file = config["evaluation"]["policy_file"]
+    collector = DataCollector(config)
+    
+    model = PPO.load(policy_file)
+    env = collector.create_env()
 
-    for episode in range(effective_episodes):
-        obs = env.reset()
-        done = [False] * env.num_envs
-        total_reward = np.zeros(env.num_envs)
-        distance_traveled = np.zeros(env.num_envs)
-        collisions = np.zeros(env.num_envs)
-        step_count = np.zeros(env.num_envs)
-        episode_start_time = time.time()
+    metrics = evaluate_trained_model(
+        env, 
+        model, 
+        num_episodes=config["evaluation"].get("num_episodes", 10),
+        just_embeddings=config["evaluation"].get("just_embeddings", True),
+        do_show_view=config["evaluation"].get("show_view", False),
+        obs_feature_key=config["evaluation"].get("obs_feature_key", "vit_embeddings"),
+    )
 
-        while not all(done) and np.any(step_count < max_steps_per_episode):
-            # Predict the next action
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
-            for i in range(env.num_envs):
-                if not done[i] and step_count[i] < max_steps_per_episode:
-                    total_reward[i] += reward[i]
-                    distance_traveled[i] += info[i].get('position_delta', 0)
-                    collisions[i] += info[i].get('collision', 0)
-                    step_count[i] += 1
+    # Model file name is set as the stage name, this is for single model evaluation
+    metrics["Stage"] = policy_file.split("/")[-1].split(".")[0]
+    df = pd.DataFrame([metrics])
 
-        episode_end_time = time.time()
-        total_distance_traveled.extend(distance_traveled)
-        total_collisions += np.sum(collisions)
-        total_steps.extend(step_count)
-        total_rewards.extend(total_reward)
-        total_episode_times.append(episode_end_time - episode_start_time)
+    date = time.strftime("%Y-%m-%d-%H-%M-%S")
+    df.to_csv(f"metrics/metadrive_policy_test_metrics_{date}.csv", index=False)
+    utils.display_results(df)
 
-        # Check success condition from environment-specific info
-        for i in range(env.num_envs):
-            if info[i].get("arrive_dest", False):
-                total_success_rate += 1
+def metadrive_policy_test_multiple_models():    
+    model_config = model_configuration()
+    results = []
+    
+    for model_file, model_config in model_config.items():
+        collector = DataCollector(model_config)
+        
+        model = PPO.load(model_file)
+        env = collector.create_env()
 
-    # Compute metrics
-    total_env_episodes = effective_episodes * env.num_envs
-    success_rate = total_success_rate / total_env_episodes
-    average_distance = np.mean(total_distance_traveled)
-    collision_rate = total_collisions / total_env_episodes
-    average_steps = np.mean(total_steps)
-    average_inference_time = np.sum(total_episode_times) / np.sum(total_steps)
-    average_speed = average_distance / np.sum(total_episode_times)
-    average_reward = np.mean(total_rewards)
+        metrics = evaluate_trained_model(
+            env, 
+            model, 
+            num_episodes=model_config["evaluation"].get("num_episodes", 10),
+            just_embeddings=model_config["evaluation"].get("just_embeddings", True),
+            do_show_view=model_config["evaluation"].get("show_view", False),
+            obs_feature_key=model_config["evaluation"].get("obs_feature_key", "vit_embeddings"),
+        )
 
-    metrics = {
-        "Success Rate": success_rate,
-        "Average Distance Traveled": average_distance,
-        "Collision Rate per Episode": collision_rate,
-        "Average Steps per Episode": average_steps,
-        "Average Inference Time per Step (seconds)": average_inference_time,
-        "Average Speed (distance per second)": average_speed,
-        "Average Reward per Episode": average_reward
-    }
+        metrics["Stage"] = model_file.split("/")[-1].split(".")[0]
+        results.append(metrics)
+        
+        env.close()
+    
+    df = pd.DataFrame(results)
 
-    return metrics
+    date = time.strftime("%Y-%m-%d-%H-%M-%S")
+    df.to_csv(f"metrics/metadrive_policy_test_metrics_{date}.csv", index=False)
+    utils.display_results(df)
 
 
 def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
@@ -344,14 +370,16 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
     utils.display_results(df)
 
 
-
 if __name__ == "__main__":
 
-    main("main.yaml")
+    # main("main.yaml")
 
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
     # test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
+
+    # metadrive_policy_test_collecting_metrics(config_file="evaluate_1.yaml")
+    metadrive_policy_test_multiple_models()
 
 
 # different environments

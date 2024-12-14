@@ -1,0 +1,19 @@
+environment:
+  window_size: [480, 480]
+  traffic_density: 0.15
+  stack_size: 4
+  accident_prob: 0.8
+  map: "CCCCCCCCCCCCCCC"
+  num_scenarios: 200
+simulation:
+  simulations_count: 1
+  show_view: True
+evaluation:
+  policy_file: "models/chill-owl-867-1M.zip"
+  # vit or resnet
+  backbone: "vit"
+  obs_feature_key: "vit_embeddings"
+  just_embeddings: True
+  num_episodes: 1
+  show_view: True
+seed: 1
