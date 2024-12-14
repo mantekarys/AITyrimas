@@ -20,6 +20,78 @@ import cupy as cp
 # Energy calculated from here (its fuel consumption):
 # https://github.com/metadriverse/metadrive/blob/b908149e422f2e7715207ca1eb81380342de5681/metadrive/component/vehicle/base_vehicle.py#L285
 
+def model_configuration():
+    model_config = {
+        "models/chill-owl-867-1M": {
+            "environment": {
+                "window_size": [480, 480],
+                "traffic_density": 0.15,
+                "stack_size": 4,
+                "accident_prob": 0.8,
+                "map": "CCCCCCCCCCCCCCC",
+                "num_scenarios": 200
+            },
+            "simulation": {
+                "simulations_count": 1,
+                "show_view": True
+            },
+            "evaluation": {
+                "backbone": "vit",
+                "obs_feature_key": "vit_embeddings",
+                "num_episodes": 5,
+                "just_embeddings": True,
+                "show_view": False
+            },
+            "seed": 1
+        },
+        "models/classy-skink-104": {
+            "environment": {
+                "window_size": [480, 480],
+                "traffic_density": 0.15,
+                "stack_size": 4,
+                "accident_prob": 0.8,
+                "map": "CCCCCCCCCCCCCCC",
+                "num_scenarios": 200
+            },
+            "simulation": {
+                "simulations_count": 1,
+                "show_view": True
+            },
+            "evaluation": {
+                "backbone": "resnet",
+                "obs_feature_key": "resnet_features",
+                "num_episodes": 5,
+                "just_embeddings": True,
+                "show_view": False,
+            },
+            "seed": 1
+        }
+        # "models/chill-owl-867-main-cnn-8": {
+        #     "environment": {
+        #         "window_size": [480, 480],
+        #         "traffic_density": 0.15,
+        #         "stack_size": 4,
+        #         "accident_prob": 0.8,
+        #         "map": "CCCCCCCCCCCCCCC",
+        #         "num_scenarios": 200
+        #     },
+        #     "simulation": {
+        #         "simulations_count": 1,
+        #         "show_view": True
+        #     },
+        #     "evaluation": {
+        #         "backbone": "resnet",
+        #         "obs_feature_key": "resnet_features",
+        #         "num_episodes": 5,
+        #         "just_embeddings": True,
+        #         "show_view": False,
+        #     },
+        #     "seed": 1
+        # },
+    }
+
+    return model_config
+
 # TODO: maybe move to utils from main as well
 def show_view(observations: np.ndarray | cp.ndarray) -> None:
     frames = observations["image"]
@@ -68,7 +140,11 @@ def evaluate_trained_model(
         distance_traveled = np.zeros(env.num_envs)
         collisions = np.zeros(env.num_envs)
         step_count = np.zeros(env.num_envs)
-        velocity = np.zeros(env.num_envs)
+
+        step_velocities = np.empty((env.num_envs,), dtype=object)
+        for i in range(env.num_envs):
+            step_velocities[i] = []
+
         episode_start_time = time.time()
        
         while not all(done) and np.any(step_count < max_steps_per_episode):
@@ -105,7 +181,7 @@ def evaluate_trained_model(
                     
                     total_reward[i] += reward[i]
                     collisions[i] += info[i].get('collision', 0)
-                    velocity[i] += info[i].get('velocity', 0)
+                    step_velocities[i].append(info[i].get('velocity', 0))
                     step_count[i] += 1
     
         total_episode_time = time.time() - episode_start_time
@@ -113,24 +189,29 @@ def evaluate_trained_model(
         total_collisions += np.sum(collisions)
         total_steps.extend(step_count)
         total_rewards.extend(total_reward)
-        episode_velocity = np.mean(velocity)
         total_episode_times.append(total_episode_time)
 
+        episode_velocities = [np.zeros(env.num_envs)]
         for i in range(env.num_envs):
             # Check success condition from environment-specific info
             if info[i].get("arrive_dest", False):
                 total_success_rate += 1
             
+            env_velocity = np.mean(step_velocities[i])
+            episode_velocities[i] = env_velocity
+            
             # velocity is returned in km/h, so we convert time to hours
             total_episode_time_hours = total_episode_time / 3600
-            distance_traveled = episode_velocity * total_episode_time_hours
+            distance_traveled[i] = env_velocity * total_episode_time_hours
 
-        total_distance_traveled.append(distance_traveled)
-        total_velocities.append(velocity)
+        total_distance_traveled.extend(distance_traveled)
+        total_velocities.extend(episode_velocities)
 
         print(f"Episode {episode + 1} completed in {total_episode_time} seconds")
+        print(f"Episode time in hours: {total_episode_time / 3600}")
         print(f"Total reward: {total_reward}")
         print(f"Distance traveled: {distance_traveled}")
+        print(f"Velocities: {episode_velocities}")
         print(f"Collisions: {collisions}")
         print(f"Steps: {step_count}")
 

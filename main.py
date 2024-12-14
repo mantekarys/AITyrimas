@@ -21,7 +21,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 import utils
 from cnn_custom_policy import CustomResNetPolicy
 
-from evaluation import evaluate_model, evaluate_trained_model
+from evaluation import evaluate_model, evaluate_trained_model, model_configuration
 
 class DataCollector:
     def __init__(self, config: dict) -> None:
@@ -179,9 +179,7 @@ def test_policy(
         obs["image"] = utils.resize(obs["image"], (224, 224))
     env.close()
 
-def metadrive_policy_test_collecting_metrics(
-    config_file: str = "evaluate.yaml",
-):
+def metadrive_policy_test_collecting_metrics(config_file: str = "evaluate.yaml"):
     config = yaml.safe_load(open(f"configs/{config_file}", "r"))
 
     if "evaluation" not in config:
@@ -202,11 +200,42 @@ def metadrive_policy_test_collecting_metrics(
         num_episodes=config["evaluation"].get("num_episodes", 10),
         just_embeddings=config["evaluation"].get("just_embeddings", True),
         do_show_view=config["evaluation"].get("show_view", False),
+        obs_feature_key=config["evaluation"].get("obs_feature_key", "vit_embeddings"),
     )
 
-    # TODO: change stage to different backbones for comparison?
-    metrics["Stage"] = 1
+    # Model file name is set as the stage name, this is for single model evaluation
+    metrics["Stage"] = policy_file.split("/")[-1].split(".")[0]
     df = pd.DataFrame([metrics])
+
+    date = time.strftime("%Y-%m-%d-%H-%M-%S")
+    df.to_csv(f"metrics/metadrive_policy_test_metrics_{date}.csv", index=False)
+    utils.display_results(df)
+
+def metadrive_policy_test_multiple_models():    
+    model_config = model_configuration()
+    results = []
+    
+    for model_file, model_config in model_config.items():
+        collector = DataCollector(model_config)
+        
+        model = PPO.load(model_file)
+        env = collector.create_env()
+
+        metrics = evaluate_trained_model(
+            env, 
+            model, 
+            num_episodes=model_config["evaluation"].get("num_episodes", 10),
+            just_embeddings=model_config["evaluation"].get("just_embeddings", True),
+            do_show_view=model_config["evaluation"].get("show_view", False),
+            obs_feature_key=model_config["evaluation"].get("obs_feature_key", "vit_embeddings"),
+        )
+
+        metrics["Stage"] = model_file.split("/")[-1].split(".")[0]
+        results.append(metrics)
+        
+        env.close()
+    
+    df = pd.DataFrame(results)
 
     date = time.strftime("%Y-%m-%d-%H-%M-%S")
     df.to_csv(f"metrics/metadrive_policy_test_metrics_{date}.csv", index=False)
@@ -348,9 +377,9 @@ if __name__ == "__main__":
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
     # test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
-    metadrive_policy_test_collecting_metrics(
-        config_file="evaluate_1.yaml"
-    )
+
+    # metadrive_policy_test_collecting_metrics(config_file="evaluate_1.yaml")
+    metadrive_policy_test_multiple_models()
 
 
 # different environments
