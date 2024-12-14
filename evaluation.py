@@ -28,7 +28,7 @@ def model_configuration():
                 "traffic_density": 0.15,
                 "stack_size": 4,
                 "accident_prob": 0.8,
-                "map": "CCCCCCCCCCCCCCC",
+                "map": "SSSTSSSTSSSTSSSTSSSTSSST",
                 "num_scenarios": 200
             },
             "simulation": {
@@ -50,7 +50,7 @@ def model_configuration():
                 "traffic_density": 0.15,
                 "stack_size": 4,
                 "accident_prob": 0.8,
-                "map": "CCCCCCCCCCCCCCC",
+                "map": "SSSTSSSTSSSTSSSTSSSTSSST",
                 "num_scenarios": 200
             },
             "simulation": {
@@ -72,7 +72,7 @@ def model_configuration():
         #         "traffic_density": 0.15,
         #         "stack_size": 4,
         #         "accident_prob": 0.8,
-        #         "map": "CCCCCCCCCCCCCCC",
+        #         "map": "SSSTSSSTSSSTSSSTSSSTSSST",
         #         "num_scenarios": 200
         #     },
         #     "simulation": {
