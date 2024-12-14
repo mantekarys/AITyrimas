@@ -28,7 +28,7 @@ training:
   steps: 2e5
 mlflow:  
   # tracking_uri: http://192.168.8.121:5000
+  experiment_name: MetaDrive ViT testing
   # experiment_name: Default
-  experiment_name: Default
   tags:
     type: "ResNet18"
