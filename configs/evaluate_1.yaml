@@ -1,0 +1,10 @@
+environment:
+  window_size: [480, 480]
+  traffic_density: 0.15
+  stack_size: 4
+  accident_prob: 0.8
+  num_scenarios: 200
+simulation:
+  simulations_count: 1
+  show_view: True
+seed: 1

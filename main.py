@@ -389,9 +389,9 @@ if __name__ == "__main__":
     # test_policy("models/sincere-ape-126.zip", 2000)
     # test_policy("models/upset-asp-587.zip", 2000, config="test_1.yaml", just_embeddings=True)
     metadrive_policy_test_collecting_metrics(
-        "models/upset-asp-587.zip", 
-        2000, 
-        config_file="test_1.yaml", 
+        "models/upset-asp-587.zip",
+        2000,
+        config_file="evaluate_1.yaml",
         just_embeddings=True
     )
 
