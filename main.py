@@ -390,14 +390,14 @@ def main(config_file: str = "main.yaml", base_model: str | None = None) -> None:
 
 if __name__ == "__main__":
 
-    main("main.yaml")
+    # main("main.yaml")
 
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
     # test_policy("models/upset-asp-587.zip", 2000, config="test_1.yaml", just_embeddings=True)
     # test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
     metadrive_policy_test_collecting_metrics(
-        "models/upset-asp-587.zip",
+        "models/chill-owl-867-1M.zip",
         2000,
         config_file="evaluate_1.yaml",
         just_embeddings=True
