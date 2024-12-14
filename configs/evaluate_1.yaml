@@ -3,8 +3,15 @@ environment:
   traffic_density: 0.15
   stack_size: 4
   accident_prob: 0.8
+  map: "CCCCCCCCCCCCCCC"
   num_scenarios: 200
 simulation:
   simulations_count: 1
   show_view: True
+evaluation:
+  model_file: "models/evaluate_1.h5"
+  # vit or resnet
+  backbone: "resnet"
+  obs_feature_key: "vit_embeddings"
+  just_embeddings: True
 seed: 1
