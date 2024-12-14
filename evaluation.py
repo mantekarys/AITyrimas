@@ -92,17 +92,9 @@ def evaluate_trained_model(
     return metrics
 
 
-def evaluate_model(
-    env,
-    model,
-    num_episodes=10,
-    max_steps_per_episode=1000,
-    just_embeddings=False
-):
+def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
     # Adjust the number of episodes based on the number of parallel environments
     effective_episodes = max(1, num_episodes // env.num_envs)
-
-    print(f"Evaluating model for {effective_episodes} episodes...")
 
     # Metrics
     total_success_rate = 0
@@ -113,8 +105,6 @@ def evaluate_model(
     total_rewards = []
 
     for episode in range(effective_episodes):
-        print(f"Episode {episode + 1}/{effective_episodes}")
-
         obs = env.reset()
         done = [False] * env.num_envs
         total_reward = np.zeros(env.num_envs)
@@ -122,16 +112,11 @@ def evaluate_model(
         collisions = np.zeros(env.num_envs)
         step_count = np.zeros(env.num_envs)
         episode_start_time = time.time()
-       
+
         while not all(done) and np.any(step_count < max_steps_per_episode):
-            print(obs.keys())
-            with torch.no_grad():
-                if just_embeddings:
-                    obs = {"vit_embeddings": obs["vit_embeddings"]}
             # Predict the next action
             action, _ = model.predict(obs, deterministic=True)
             obs, reward, done, info = env.step(action)
-
             for i in range(env.num_envs):
                 if not done[i] and step_count[i] < max_steps_per_episode:
                     total_reward[i] += reward[i]
@@ -139,12 +124,6 @@ def evaluate_model(
                     collisions[i] += info[i].get('collision', 0)
                     step_count[i] += 1
 
-        print(f"Episode {episode + 1} completed in {time.time() - episode_start_time} seconds")
-        print(f"Total reward: {total_reward}")
-        print(f"Distance traveled: {distance_traveled}")
-        print(f"Collisions: {collisions}")
-        print(f"Steps: {step_count}")
-        
         episode_end_time = time.time()
         total_distance_traveled.extend(distance_traveled)
         total_collisions += np.sum(collisions)
@@ -156,8 +135,6 @@ def evaluate_model(
         for i in range(env.num_envs):
             if info[i].get("arrive_dest", False):
                 total_success_rate += 1
-                
-        print(f"Total success rate: {total_success_rate}")
 
     # Compute metrics
     total_env_episodes = effective_episodes * env.num_envs
