@@ -36,6 +36,14 @@ class DataCollector:
         if "training" in config:
             config["training"]["steps"] = int(float(config["training"]["steps"]))
 
+        if "evaluation" in config:
+            self.evaluated = True
+            self.agent_backbone = config["evaluation"].get("backbone", "vit")
+            print(f"Agent backbone: {self.agent_backbone}")
+            
+            if self.agent_backbone not in ["resnet", "vit"]:
+                raise ValueError("Evaluation error: Invalid backbone for the agent set in config file")
+
         self.config = config
         self.maps = self.config.get("environment", {}).get("map", [])
 
@@ -64,9 +72,23 @@ class DataCollector:
         )
         sim_config["map"] = random.choice(self.maps)
 
-        env = utils.CNN_FixedSafeMetaDriveEnv(
-            return_image=self.return_image, env_config=sim_config
-        )
+        # if evalutated pretrained model, use environment set in config
+        if self.evaluated:
+            if self.agent_backbone == "vit":
+                env = utils.FixedSafeMetaDriveEnv(
+                    return_image=self.return_image, env_config=sim_config
+                )
+            elif self.agent_backbone == "resnet":
+                env = utils.CNN_FixedSafeMetaDriveEnv(
+                    return_image=self.return_image, env_config=sim_config
+                )
+            else:
+                raise ValueError("Evaluation error: Invalid backbone for the agent set in config file")
+        else:
+            # Change environment here for training
+            env = utils.CNN_FixedSafeMetaDriveEnv(
+                return_image=self.return_image, env_config=sim_config
+            )
 
         # Modify the reset function to select a new map each time
         original_reset = env.reset
@@ -174,9 +196,18 @@ def metadrive_policy_test_collecting_metrics(
     model = PPO.load(policy_file)
     env = collector.create_env()
 
-    metrics = evaluate_trained_model(env, model, num_episodes=10, just_embeddings=config.get("just_embeddings", True))
-    print(metrics)
-    df = pd.DataFrame(metrics)
+    metrics = evaluate_trained_model(
+        env, 
+        model, 
+        num_episodes=config["evaluation"].get("num_episodes", 10),
+        just_embeddings=config["evaluation"].get("just_embeddings", True),
+        do_show_view=config["evaluation"].get("show_view", False),
+    )
+
+    # TODO: change stage to different backbones for comparison?
+    metrics["Stage"] = 1
+    df = pd.DataFrame([metrics])
+
     date = time.strftime("%Y-%m-%d-%H-%M-%S")
     df.to_csv(f"metrics/metadrive_policy_test_metrics_{date}.csv", index=False)
     utils.display_results(df)
@@ -316,13 +347,9 @@ if __name__ == "__main__":
 
     # main("test_1.yaml", "models/upset-asp-587.zip")
     # test_policy("models/sincere-ape-126.zip", 2000)
-    # test_policy("models/upset-asp-587.zip", 2000, config="test_1.yaml", just_embeddings=True)
     # test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
     metadrive_policy_test_collecting_metrics(
-        "models/chill-owl-867-1M.zip",
-        2000,
-        config_file="evaluate_1.yaml",
-        just_embeddings=True
+        config_file="evaluate_1.yaml"
     )
 
 

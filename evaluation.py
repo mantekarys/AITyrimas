@@ -1,13 +1,49 @@
 import time
 import numpy as np
 import torch
+import cv2
+import cupy as cp
+
+# Metadrive env info keys: 
+# ['overtake_vehicle_num', 'velocity', 'steering', 'acceleration', 
+# 'step_energy', 'episode_energy', 'policy', 
+# 'navigation_command', 'navigation_forward', 'navigation_left', 'navigation_right', 
+# 'action', 'raw_action', 
+# 'crash_vehicle', 'crash_object', 'crash_building', 'crash_human', 'crash_sidewalk', 'out_of_road', 
+# 'arrive_dest', 'max_step', 'env_seed', 'crash', 'step_reward', 'route_completion', 
+# 'cost', 'total_cost', 'episode_reward', 'episode_length', 'episode', 'is_success', 
+# 'TimeLimit.truncated', 'terminal_observation']
+
+# Some are described here:
+# https://metadrive-simulator.readthedocs.io/en/latest/reward_cost_done.html?highlight=velocity#step-information
+
+# Energy calculated from here (its fuel consumption):
+# https://github.com/metadriverse/metadrive/blob/b908149e422f2e7715207ca1eb81380342de5681/metadrive/component/vehicle/base_vehicle.py#L285
+
+# TODO: maybe move to utils from main as well
+def show_view(observations: np.ndarray | cp.ndarray) -> None:
+    frames = observations["image"]
+    if len(frames.shape) == 4:
+        image = frames[..., -1] * 255  # [0., 1.] to [0, 255]
+    elif len(frames.shape) == 5:
+        frames = frames[:, ..., -1]
+        image = np.concatenate([f for f in frames], axis=1)
+        image *= 255
+    image = image.astype(np.uint8)
+    # image: np.array = cp.asnumpy(image)
+
+    cv2.imshow("frame", image)
+    if cv2.waitKey(1) == ord("q"):
+        return
 
 def evaluate_trained_model(
     env,
     model,
     num_episodes=10,
     max_steps_per_episode=1000,
-    just_embeddings=False
+    just_embeddings=False,
+    do_show_view=False,
+    obs_feature_key="vit_embeddings"
 ):
     # Adjust the number of episodes based on the number of parallel environments
     effective_episodes = max(1, num_episodes // env.num_envs)
@@ -17,6 +53,7 @@ def evaluate_trained_model(
     # Metrics
     total_success_rate = 0
     total_distance_traveled = []
+    total_velocities = []
     total_collisions = 0
     total_steps = []
     total_episode_times = []
@@ -31,42 +68,73 @@ def evaluate_trained_model(
         distance_traveled = np.zeros(env.num_envs)
         collisions = np.zeros(env.num_envs)
         step_count = np.zeros(env.num_envs)
+        velocity = np.zeros(env.num_envs)
         episode_start_time = time.time()
        
         while not all(done) and np.any(step_count < max_steps_per_episode):
-            print(obs.keys())
+            # disables gradient calculation
             with torch.no_grad():
                 if just_embeddings:
-                    obs = {"vit_embeddings": obs["vit_embeddings"]}
-            # Predict the next action
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, info = env.step(action)
+                    obs = {obs_feature_key: obs[obs_feature_key]}
+                    # Predict the next action
+                    action, _ = model.predict(obs, deterministic=True)
 
+            obs, reward, done, info = env.step(action)
+            
+            if do_show_view:
+                show_view(obs)
+            
             for i in range(env.num_envs):
                 if not done[i] and step_count[i] < max_steps_per_episode:
+                    
+                    # For debugging
+                    if "reward" in info[i]:
+                        print(f"Reward: {info[i]['reward']}")
+                    if "acceleration" in info[i]:
+                        print(f"Acceleration: {info[i]['acceleration']}")
+                    if "velocity" in info[i]:
+                        print(f"velocity: {info[i]['velocity']}")
+                    if "position_delta" in info[i]:
+                        print(f"Position delta: {info[i]['position_delta']}")
+                    if "arrive_dest" in info[i]:
+                        print(f"arrive_dest: {info[i]['arrive_dest']}")
+                    if "max_step" in info[i]:
+                        print(f"max_step: {info[i]['max_step']}")
+                    if "collision" in info[i]:
+                        print(f"collision: {info[i]['collision']}")
+                    
                     total_reward[i] += reward[i]
-                    distance_traveled[i] += info[i].get('position_delta', 0)
                     collisions[i] += info[i].get('collision', 0)
+                    velocity[i] += info[i].get('velocity', 0)
                     step_count[i] += 1
+    
+        total_episode_time = time.time() - episode_start_time
 
-        print(f"Episode {episode + 1} completed in {time.time() - episode_start_time} seconds")
+        total_collisions += np.sum(collisions)
+        total_steps.extend(step_count)
+        total_rewards.extend(total_reward)
+        episode_velocity = np.mean(velocity)
+        total_episode_times.append(total_episode_time)
+
+        for i in range(env.num_envs):
+            # Check success condition from environment-specific info
+            if info[i].get("arrive_dest", False):
+                total_success_rate += 1
+            
+            # velocity is returned in km/h, so we convert time to hours
+            total_episode_time_hours = total_episode_time / 3600
+            distance_traveled = episode_velocity * total_episode_time_hours
+
+        total_distance_traveled.append(distance_traveled)
+        total_velocities.append(velocity)
+
+        print(f"Episode {episode + 1} completed in {total_episode_time} seconds")
         print(f"Total reward: {total_reward}")
         print(f"Distance traveled: {distance_traveled}")
         print(f"Collisions: {collisions}")
         print(f"Steps: {step_count}")
-        
-        episode_end_time = time.time()
-        total_distance_traveled.extend(distance_traveled)
-        total_collisions += np.sum(collisions)
-        total_steps.extend(step_count)
-        total_rewards.extend(total_reward)
-        total_episode_times.append(episode_end_time - episode_start_time)
 
-        # Check success condition from environment-specific info
-        for i in range(env.num_envs):
-            if info[i].get("arrive_dest", False):
-                total_success_rate += 1
-                
+        print(f"Is done: {done}")
         print(f"Total success rate: {total_success_rate}")
 
     # Compute metrics
@@ -76,7 +144,7 @@ def evaluate_trained_model(
     collision_rate = total_collisions / total_env_episodes
     average_steps = np.mean(total_steps)
     average_inference_time = np.sum(total_episode_times) / np.sum(total_steps)
-    average_speed = average_distance / np.sum(total_episode_times)
+    average_speed = np.mean(total_velocities)
     average_reward = np.mean(total_rewards)
 
     metrics = {
@@ -120,6 +188,7 @@ def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
             for i in range(env.num_envs):
                 if not done[i] and step_count[i] < max_steps_per_episode:
                     total_reward[i] += reward[i]
+                    # TODO: position_delta does not seem to be available in env step info
                     distance_traveled[i] += info[i].get('position_delta', 0)
                     collisions[i] += info[i].get('collision', 0)
                     step_count[i] += 1
