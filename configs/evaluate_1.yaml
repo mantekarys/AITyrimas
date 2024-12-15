@@ -10,10 +10,11 @@ simulation:
   simulations_count: 1
   show_view: True
 evaluation:
-  policy_file: "models/chill-owl-867-cnn1.zip"
+  policy_file: "models/chill-owl-867-1M.zip"
   # vit or resnet
-  backbone: "resnet"
-  obs_feature_key: "resnet_features"
+  backbone: "vit"
+  # resnet_features or vit_embeddings
+  obs_feature_key: "vit_embeddings"
   just_embeddings: True
   num_episodes: 5
   show_view: True
