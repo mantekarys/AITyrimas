@@ -1,0 +1,2 @@
+Success Rate,Average Distance Traveled,Collision Rate per Episode,Average Steps per Episode,Average Inference Time per Step (seconds),Average Speed (distance per second),Average Reward per Episode,Stage
+0.0,22.885780619073614,0.0,75.6,0.17613254148493368,6.218269249446641,44.498958587646484,chill-owl-867-1

@@ -1,0 +1,2 @@
+Success Rate,Average Distance Traveled,Collision Rate per Episode,Average Steps per Episode,Average Inference Time per Step (seconds),Average Speed (distance per second),Average Reward per Episode,Stage
+0.0,8.104328760723336,0.0,44.0,0.1582272323695096,4.183740432184656,2.0243291318416596,capable-auk-759
