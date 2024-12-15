@@ -3,7 +3,8 @@ environment:
   traffic_density: 0.15
   stack_size: 4
   accident_prob: 0.8
-  map: "SSSTSSSTSSSTSSSTSSSTSSST"
+  map: "SSTSSTSSTSSTSSTSST"
+  need_inverse_traffic: True
   num_scenarios: 200
 simulation:
   simulations_count: 1
@@ -14,6 +15,6 @@ evaluation:
   backbone: "vit"
   obs_feature_key: "vit_embeddings"
   just_embeddings: True
-  num_episodes: 1
+  num_episodes: 5
   show_view: True
 seed: 1

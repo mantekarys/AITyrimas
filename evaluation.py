@@ -221,7 +221,7 @@ def evaluate_trained_model(
     # Compute metrics
     total_env_episodes = effective_episodes * env.num_envs
     success_rate = total_success_rate / total_env_episodes
-    average_distance = np.mean(total_distance_traveled)
+    average_distance = np.mean(total_distance_traveled) * 1000  # convert to meters
     collision_rate = total_collisions / total_env_episodes
     average_steps = np.mean(total_steps)
     average_inference_time = np.sum(total_episode_times) / np.sum(total_steps)
