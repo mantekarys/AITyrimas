@@ -49,28 +49,53 @@ class DataCollector:
 
     def single_env(self, seed: int = None) -> gym.Env:
         sim_config = self.config["environment"].copy()
-        sim_config.update(
-            {
-                "speed_reward": 0.0,
-                "use_lateral_reward": False,
-                "out_of_road_penalty": 30,
-                "image_observation": True,
-                "vehicle_config": dict(image_source="main_camera"),
-                "sensors": {"main_camera": ()},
-                "image_on_cuda": False,
-                "window_size": tuple(self.config["environment"]["window_size"]),
-                "start_seed": seed if seed else self.seed,
-                "use_render": False,
-                "show_interface": True,
-                "show_logo": False,
-                "show_fps": False,
-                "crash_vehicle_done": False,
-                "crash_object_done": False,
-                "out_of_route_done": True,
-                "on_continuous_line_done": True,
-            }
-        )
-        sim_config["map"] = random.choice(self.maps)
+        
+        if self.evaluated:
+            sim_config.update(
+                {
+                    "speed_reward": 0.0,
+                    "use_lateral_reward": False,
+                    "out_of_road_penalty": 30,
+                    "image_observation": True,
+                    "vehicle_config": dict(image_source="main_camera", vehicle_model="s"),
+                    "sensors": {"main_camera": ()},
+                    "image_on_cuda": False,
+                    "window_size": tuple(self.config["environment"]["window_size"]),
+                    "start_seed": seed if seed else self.seed,
+                    "use_render": False,
+                    "show_interface": True,
+                    "show_logo": False,
+                    "show_fps": False,
+                    "crash_vehicle_done": True,
+                    "crash_object_done": True,
+                    "out_of_route_done": False,
+                    "on_continuous_line_done": False,
+                    "map": self.maps
+                }
+            )
+        else:
+            sim_config.update(
+                {
+                    "speed_reward": 0.0,
+                    "use_lateral_reward": False,
+                    "out_of_road_penalty": 30,
+                    "image_observation": True,
+                    "vehicle_config": dict(image_source="main_camera"),
+                    "sensors": {"main_camera": ()},
+                    "image_on_cuda": False,
+                    "window_size": tuple(self.config["environment"]["window_size"]),
+                    "start_seed": seed if seed else self.seed,
+                    "use_render": False,
+                    "show_interface": True,
+                    "show_logo": False,
+                    "show_fps": False,
+                    "crash_vehicle_done": False,
+                    "crash_object_done": False,
+                    "out_of_route_done": True,
+                    "on_continuous_line_done": True,
+                }
+            )
+            sim_config["map"] = random.choice(self.maps)
 
         # if evalutated pretrained model, use environment set in config
         if self.evaluated:
@@ -378,8 +403,8 @@ if __name__ == "__main__":
     # test_policy("models/sincere-ape-126.zip", 2000)
     # test_policy("models/chill-owl-867.zip", 2000, just_embeddings=True)
 
-    # metadrive_policy_test_collecting_metrics(config_file="evaluate_1.yaml")
-    metadrive_policy_test_multiple_models()
+    metadrive_policy_test_collecting_metrics(config_file="evaluate_1.yaml")
+    # metadrive_policy_test_multiple_models()
 
 
 # different environments
