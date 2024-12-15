@@ -180,6 +180,7 @@ def evaluate_trained_model(
                         print(f"collision: {info[i]['collision']}")
                     
                     total_reward[i] += reward[i]
+                    # TODO: not a key, need to add up all the other keys here to get collision count correctly
                     collisions[i] += info[i].get('collision', 0)
                     step_velocities[i].append(info[i].get('velocity', 0))
                     step_count[i] += 1
@@ -271,6 +272,7 @@ def evaluate_model(env, model, num_episodes=10, max_steps_per_episode=1000):
                     total_reward[i] += reward[i]
                     # TODO: position_delta does not seem to be available in env step info
                     distance_traveled[i] += info[i].get('position_delta', 0)
+                    # TODO: not a key, need to add up all the other keys here to get collision count correctly
                     collisions[i] += info[i].get('collision', 0)
                     step_count[i] += 1
 
